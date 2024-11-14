@@ -40,12 +40,11 @@ def create_app(config_name=None) -> Flask:
     login.init_app(app)
 
     # register blueprints
-    from app.books import books 
-    app.register_blueprint(books)
+    from app.api import api 
+    app.register_blueprint(api)
 
-    # from app.auth import auth 
-    # app.register_blueprint(auth, cli_group='auth')
-    # login.login_view = "auth.login"
+    from app.auth import auth 
+    app.register_blueprint(auth)
 
     # set up logging
     setup_logging(app)  

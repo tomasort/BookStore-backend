@@ -9,7 +9,7 @@ class BaseConfig:
     TESTING = False
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', f'sqlite:///{BASE_DIR}/db.sqlite3')
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'f64ac936a2d9b7370c6b55b727f92c18') # use secrets.token_hex(32) or something like that to generate a key
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'f64ac936a2d9b7370c6b55b727f92c18') # use secrets.token_hex(32) or something like that to generate a key (this is a dummy key btw)
 
 class DevelopmentConfig(BaseConfig):
     """Development configuration"""
