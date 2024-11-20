@@ -50,11 +50,21 @@ def get_authors():
     )
 
 
-# @authors.route('/authors/<int:author_id>', methods=['GET'])
-# def get_author(author_id):
-#     """Retrieve a single author by its ID"""
-#     # Code to handle retrieving an author by ID
-#     pass
+@authors.route('/<int:author_id>', methods=['GET'])
+def get_author(author_id):
+    """Retrieve a single author by its ID"""
+    author = db.session.execute(db.select(Author).where(Author.id == author_id)).scalar()
+    if not author:
+        return jsonify({"error": "Author not found"}), 404
+    return jsonify(
+        {
+            "id": author.id,
+            "name": author.name,
+            "birth_date": author.birth_date,
+            "death_date": author.death_date,
+            "biography": author.biography,
+        }
+    )
 
 
 # @authors.route('/authors/<int:author_id>', methods=['PUT'])

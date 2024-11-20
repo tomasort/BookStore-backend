@@ -79,3 +79,22 @@ def test_get_authors(client, test_authors_data):
     # check that the author ids are in the response
     for author in data:
         assert all([author['id'] in author_ids for author in data])
+
+
+def test_get_author(client, test_authors_data):
+    # Add an author to the database
+    response = client.post(
+        "/api/authors",
+        data=json.dumps(test_authors_data[0]),
+        content_type="application/json"
+    )
+    assert response.status_code == 201
+    author_id = response.get_json()["author_id"]
+    # Send a GET request to retrieve the author
+    response = client.get(f"/api/authors/{author_id}")
+    # Assert that the request was successful
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["name"] == test_authors_data[0]["name"]
+    # Check that the author id is in the response
+    assert data["id"] == author_id
