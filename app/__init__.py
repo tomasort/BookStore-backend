@@ -12,19 +12,19 @@ db = SQLAlchemy()
 migrate = Migrate()
 login = LoginManager()
 
-def setup_logging(app) -> None:
+def setup_logging(app: Flask) -> None:
     if not os.path.exists(f'{__name__}/logs'):  
         os.mkdir(f'{__name__}/logs')
     file_handler = RotatingFileHandler(f'{__name__}/logs/{__name__}.log', maxBytes=10240, backupCount=10)
-    file_handler.setFormatter(logging.Formatter(
-        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
-    ))
+    format_strign = '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+    file_handler.setFormatter(logging.Formatter(format_strign))
     file_handler.setLevel(logging.INFO)
     app.logger.addHandler(file_handler)
 
     app.logger.info('app startup')
 
-def create_app(config_name=None) -> Flask:
+
+def create_app(config_name: str|None = None) -> Flask:
     if config_name is None:
         config_name = os.environ.get("FLASK_CONFIG", "development")
 
@@ -42,9 +42,6 @@ def create_app(config_name=None) -> Flask:
     # register blueprints
     from app.api import api 
     app.register_blueprint(api)
-
-    from app.auth import auth 
-    app.register_blueprint(auth)
 
     # set up logging
     setup_logging(app)  
