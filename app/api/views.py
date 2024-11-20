@@ -303,11 +303,22 @@ def create_author():
         return jsonify({"error": str(e)}), 400
 
 
-# @api.route('/authors', methods=['GET'])
-# def get_authors():
-#     """Retrieve a list of authors with filtering, pagination, and sorting"""
-#     # Code to handle retrieving authors
-#     pass
+@api.route('/authors', methods=['GET'])
+def get_authors():
+    """Retrieve a list of authors with filtering, pagination, and sorting"""
+    authors = db.session.execute(db.select(Author)).scalars()
+    return jsonify(
+        [
+            {
+                "id": author.id,
+                "name": author.name,
+                "birth_date": author.birth_date,
+                "death_date": author.death_date,
+                "biography": author.biography,
+            }
+            for author in authors
+        ]
+    )
 
 
 # @api.route('/authors/<int:author_id>', methods=['GET'])

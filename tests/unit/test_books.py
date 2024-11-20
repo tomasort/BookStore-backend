@@ -275,3 +275,27 @@ def test_add_authors_to_book(client, test_book_data, test_authors_data):
     new_author_ids = [author["id"] for author in book_data.get("authors", [])]
     for author_id in author_ids:
         assert author_id in new_author_ids
+
+
+def test_get_authors(client, test_authors_data):
+    # Add authors to the database
+    author_ids = []
+    for author in test_authors_data:
+        response = client.post(
+            "/api/authors",
+            data=json.dumps(author),
+            content_type="application/json"
+        )
+        assert response.status_code == 201
+        author_ids.append(response.get_json()["author_id"])
+    # Send a GET request to retrieve all authors
+    response = client.get("/api/authors")
+    # Assert that the request was successful
+    assert response.status_code == 200
+    data = response.get_json()
+    assert isinstance(data, list)  # Should return a list of authors
+    assert len(data) > 0  # The list should not be empty
+    assert data[0]["name"] == test_authors_data[0]["name"]
+    # check that the author ids are in the response
+    for author in data:
+        assert all([author['id'] in author_ids for author in data])
