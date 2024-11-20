@@ -98,3 +98,89 @@ def test_get_author(client, test_authors_data):
     assert data["name"] == test_authors_data[0]["name"]
     # Check that the author id is in the response
     assert data["id"] == author_id
+
+
+def test_update_author(client, test_authors_data):
+    # Add an author to the database
+    response = client.post(
+        "/api/authors",
+        data=json.dumps(test_authors_data[0]),
+        content_type="application/json"
+    )
+    assert response.status_code == 201
+    author_id = response.get_json()["author_id"]
+    # Send a PUT request to update the author
+    new_data = {
+        "name": "New Name",
+        "birth_date": "1990-01-01",
+        "death_date": "2020-01-01",
+        "biography": "New Biography"
+    }
+    response = client.put(
+        f"/api/authors/{author_id}",
+        data=json.dumps(new_data),
+        content_type="application/json"
+    )
+    # Assert that the request was successful
+    assert response.status_code == 200
+    # Check that the author was updated correctly
+    response = client.get(f"/api/authors/{author_id}")
+    data = response.get_json()
+    assert data["name"] == new_data["name"]
+    assert data["biography"] == new_data["biography"]
+
+
+def test_delete_author(client, test_authors_data):
+    # Add an author to the database
+    response = client.post(
+        "/api/authors",
+        data=json.dumps(test_authors_data[0]),
+        content_type="application/json"
+    )
+    assert response.status_code == 201
+    author_id = response.get_json()["author_id"]
+    # Send a DELETE request to delete the author
+    response = client.delete(f"/api/authors/{author_id}")
+    # Assert that the request was successful
+    assert response.status_code == 200
+    # Check that the author was deleted
+    response = client.get(f"/api/authors/{author_id}")
+    assert response.status_code == 404
+    data = response.get_json()
+    assert data["error"] == "Author not found"
+
+
+def test_get_author_books(client, test_book_data, test_authors_data):
+    # Create a book to which authors will be added
+    create_book_response = client.post(
+        "/api/books",
+        data=json.dumps(test_book_data),
+        content_type="application/json"
+    )
+    assert create_book_response.status_code == 201
+    book_id = create_book_response.get_json()["book_id"]
+    # Create an author
+    create_author_response = client.post(
+        "/api/authors",
+        data=json.dumps(test_authors_data[0]),
+        content_type="application/json"
+    )
+    assert create_author_response.status_code == 201
+    author_id = create_author_response.get_json()["author_id"]
+    # Add the author to the book
+    add_authors_response = client.post(
+        f"/api/books/{book_id}/authors",
+        data=json.dumps({"author_ids": [author_id]}),
+        content_type="application/json"
+    )
+    assert add_authors_response.status_code == 200
+    # Send a GET request to retrieve the author's books
+    response = client.get(f"/api/authors/{author_id}/books")
+    # Assert that the request was successful
+    assert response.status_code == 200
+    data = response.get_json()
+    assert isinstance(data, list)  # Should return a list of books
+    assert len(data) > 0  # The list should not be empty
+    assert data[0]["title"] == test_book_data["title"]
+    # Check that the book id is in the response
+    assert data[0]["id"] == book_id
