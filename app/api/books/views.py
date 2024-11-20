@@ -1,16 +1,16 @@
 from flask import current_app, render_template, request, jsonify, Request
 from datetime import datetime
 from flask_login import login_required
-from app.api import api
 from app import db
-from app.api.models import Book, Author, Genre, Language, Series
+from app.api.models import Book, Author
+from app.api.books import books
 
 
 # ----------- BOOK ROUTES ----------- #
 
 # TODO: use longin required for create, update, delete routes
 
-@api.route("/books", methods=["POST"])
+@books.route("", methods=["POST"])
 def create_book():
     data = request.json
     try:
@@ -46,7 +46,7 @@ def create_book():
         return jsonify({"error": str(e)}), 400
 
 
-@api.route("/books/<int:book_id>", methods=["PUT"])
+@books.route("/<int:book_id>", methods=["PUT"])
 def update_book(book_id):
     data = request.json
     book = db.get_or_404(Book, book_id)
@@ -87,7 +87,7 @@ def update_book(book_id):
         return jsonify({"error": str(e)}), 400
 
 
-@api.route("/books", methods=["GET"])
+@books.route("", methods=["GET"])
 def get_books():
     # TODO: implement query parameters for page, limit, author, genre, language, publisher, series, search, sort
     books = db.session.execute(db.select(Book)).scalars()
@@ -120,7 +120,7 @@ def get_books():
     )
 
 
-@api.route("/books/<int:book_id>", methods=["GET"])
+@books.route("/<int:book_id>", methods=["GET"])
 def get_book(book_id):
     """Retrieve a single book by its ID"""
     book = db.get_or_404(Book, book_id)
@@ -151,7 +151,7 @@ def get_book(book_id):
     )
 
 
-@api.route("/books/<int:book_id>", methods=["DELETE"])
+@books.route("/<int:book_id>", methods=["DELETE"])
 def delete_book(book_id):
     book = db.get_or_404(Book, book_id)
     try:
@@ -163,7 +163,7 @@ def delete_book(book_id):
         return jsonify({"error": str(e)}), 400
 
 
-@api.route('/books/search', methods=['GET'])
+@books.route('/search', methods=['GET'])
 def search_books():
     """Search for books by title, ISBN, author, etc."""
     # Get search parameters from the query string
@@ -209,7 +209,7 @@ def search_books():
     return jsonify(results)
 
 
-@api.route('/books/<int:book_id>/authors', methods=['POST'])
+@books.route('/<int:book_id>/authors', methods=['POST'])
 def add_authors_to_book(book_id):
     """Associate existing authors to a book using author IDs"""
     # Retrieve the book by its ID
@@ -237,7 +237,7 @@ def add_authors_to_book(book_id):
 
 
 # # TODO: remove author to a book
-# @api.route('/books/<int:book_id>/authors/<int:author_id>', methods=['DELETE'])
+# @books.route('//<int:book_id>/authors/<int:author_id>', methods=['DELETE'])
 # def remove_author_from_book(book_id, author_id):
 #     """Remove an author from a book"""
 #     # Code to handle removing an author from a book
@@ -245,7 +245,7 @@ def add_authors_to_book(book_id):
 
 
 # # TODO: add genre to a book
-# @api.route('/books/<int:book_id>/genres', methods=['POST'])
+# @books.route('//<int:book_id>/genres', methods=['POST'])
 # def add_genres_to_book(book_id):
 #     """Add genres to a book"""
 #     # Code to handle adding genres to a book
@@ -253,7 +253,7 @@ def add_authors_to_book(book_id):
 
 
 # # TODO: add remove to a book
-# @api.route('/books/<int:book_id>/genres/<int:genre_id>', methods=['DELETE'])
+# @books.route('//<int:book_id>/genres/<int:genre_id>', methods=['DELETE'])
 # def remove_genre_from_book(book_id, genre_id):
 #     """Remove a genre from a book"""
 #     # Code to handle removing a genre from a book
@@ -261,7 +261,7 @@ def add_authors_to_book(book_id):
 
 
 # # TODO: add series to a book
-# @api.route('/books/<int:book_id>/series', methods=['POST'])
+# @books.route('//<int:book_id>/series', methods=['POST'])
 # def add_series_to_book(book_id):
 #     """Add series to a book"""
 #     # Code to handle adding series to a book
@@ -269,117 +269,45 @@ def add_authors_to_book(book_id):
 
 
 # # TODO: remove series to a book
-# @api.route('/books/<int:book_id>/series/<int:series_id>', methods=['DELETE'])
+# @books.route('//<int:book_id>/series/<int:series_id>', methods=['DELETE'])
 # def remove_series_from_book(book_id, series_id):
 #     """Remove a series from a book"""
 #     # Code to handle removing a series from a book
 #     pass
 
 
-# # ----------- AUTHOR ROUTES -----------
-
-@api.route('/authors', methods=['POST'])
-def create_author():
-    """Create a new author"""
-    data = request.json
-    name = data.get("name")
-    if not name:
-        return jsonify({"error": "Author 'name' is required"}), 400
-
-    author = Author(
-        name=name,
-        birth_date=datetime.strptime(
-            data.get("birth_date"), "%Y-%m-%d").date() if "birth_date" in data else None,
-        death_date=datetime.strptime(
-            data.get("death_date"), "%Y-%m-%d").date() if "death_date" in data else None,
-        biography=data.get("biography")
-    )
-    try:
-        db.session.add(author)
-        db.session.commit()
-        return jsonify({"author_id": author.id, "message": "Author created successfully"}), 201
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 400
-
-
-@api.route('/authors', methods=['GET'])
-def get_authors():
-    """Retrieve a list of authors with filtering, pagination, and sorting"""
-    authors = db.session.execute(db.select(Author)).scalars()
-    return jsonify(
-        [
-            {
-                "id": author.id,
-                "name": author.name,
-                "birth_date": author.birth_date,
-                "death_date": author.death_date,
-                "biography": author.biography,
-            }
-            for author in authors
-        ]
-    )
-
-
-# @api.route('/authors/<int:author_id>', methods=['GET'])
-# def get_author(author_id):
-#     """Retrieve a single author by its ID"""
-#     # Code to handle retrieving an author by ID
-#     pass
-
-
-# @api.route('/authors/<int:author_id>', methods=['PUT'])
-# def update_author(author_id):
-#     """Update an author by its ID"""
-#     # Code to handle updating an author by ID
-#     pass
-
-
-# @api.route('/authors/<int:author_id>', methods=['DELETE'])
-# def delete_author(author_id):
-#     """Delete an author by its ID"""
-#     # Code to handle deleting an author by ID
-#     pass
-
-
-# @api.route('/authors/<int:author_id>/books', methods=['GET'])
-# def get_books_by_author(author_id):
-#     """Get all books by a specific author"""
-#     # Code to handle retrieving all books by a given author
-#     pass
-
 # # ----------- GENRE ROUTES ----------- #
 
 
-# @api.route('/genres', methods=['POST'])
+# @books.route('/genres', methods=['POST'])
 # def create_genre():
 #     """Create a new genre"""
 #     # Code to handle creating a genre
 #     pass
 
 
-# @api.route('/genres', methods=['GET'])
+# @books.route('/genres', methods=['GET'])
 # def get_genres():
 #     """Retrieve a list of genres with filtering, pagination, and sorting"""
 #     # Code to handle retrieving genres
 #     pass
 
 
-# @api.route('/genres/<int:genre_id>', methods=['GET'])
+# @books.route('/genres/<int:genre_id>', methods=['GET'])
 # def get_genre(genre_id):
 #     """Retrieve a single genre by its ID"""
 #     # Code to handle retrieving a genre by ID
 #     pass
 
 
-# @api.route('/genres/<int:genre_id>', methods=['PUT'])
+# @books.route('/genres/<int:genre_id>', methods=['PUT'])
 # def update_genre(genre_id):
 #     """Update a genre by its ID"""
 #     # Code to handle updating a genre by ID
 #     pass
 
 
-# @api.route('/genres/<int:genre_id>', methods=['DELETE'])
+# @books.route('/genres/<int:genre_id>', methods=['DELETE'])
 # def delete_genre(genre_id):
 #     """Delete a genre by its ID"""
 #     # Code to handle deleting a genre by ID
@@ -388,7 +316,7 @@ def get_authors():
 
 # # ----------- GENRE'S BOOKS ROUTE ----------- #
 
-# @api.route('/genres/<int:genre_id>/books', methods=['GET'])
+# @books.route('/genres/<int:genre_id>/', methods=['GET'])
 # def get_books_by_genre(genre_id):
 #     """Get all books that belong to a specific genre"""
 #     # Code to handle retrieving all books associated with a given genre
@@ -397,35 +325,35 @@ def get_authors():
 # # ----------- PUBLISHER ROUTES ----------- #
 
 
-# @api.route('/publishers', methods=['POST'])
+# @books.route('/publishers', methods=['POST'])
 # def create_publisher():
 #     """Create a new publisher"""
 #     # Code to handle creating a publisher
 #     pass
 
 
-# @api.route('/publishers', methods=['GET'])
+# @books.route('/publishers', methods=['GET'])
 # def get_publishers():
 #     """Retrieve a list of publishers with filtering, pagination, and sorting"""
 #     # Code to handle retrieving publishers
 #     pass
 
 
-# @api.route('/publishers/<int:publisher_id>', methods=['GET'])
+# @books.route('/publishers/<int:publisher_id>', methods=['GET'])
 # def get_publisher(publisher_id):
 #     """Retrieve a single publisher by its ID"""
 #     # Code to handle retrieving a publisher by ID
 #     pass
 
 
-# @api.route('/publishers/<int:publisher_id>', methods=['PUT'])
+# @books.route('/publishers/<int:publisher_id>', methods=['PUT'])
 # def update_publisher(publisher_id):
 #     """Update a publisher by its ID"""
 #     # Code to handle updating a publisher by ID
 #     pass
 
 
-# @api.route('/publishers/<int:publisher_id>', methods=['DELETE'])
+# @books.route('/publishers/<int:publisher_id>', methods=['DELETE'])
 # def delete_publisher(publisher_id):
 #     """Delete a publisher by its ID"""
 #     # Code to handle deleting a publisher by ID
@@ -434,7 +362,7 @@ def get_authors():
 
 # # ----------- PUBLISHER'S BOOKS ROUTE ----------- #
 
-# @api.route('/publishers/<int:publisher_id>/books', methods=['GET'])
+# @books.route('/publishers/<int:publisher_id>/', methods=['GET'])
 # def get_books_by_publisher(publisher_id):
 #     """Get all books published by a specific publisher"""
 #     # Code to handle retrieving all books by a given publisher
@@ -443,35 +371,35 @@ def get_authors():
 # # ----------- SERIES ROUTES ----------- #
 
 
-# @api.route('/series', methods=['POST'])
+# @books.route('/series', methods=['POST'])
 # def create_series():
 #     """Create a new series"""
 #     # Code to handle creating a series
 #     pass
 
 
-# @api.route('/series', methods=['GET'])
+# @books.route('/series', methods=['GET'])
 # def get_series():
 #     """Retrieve a list of series with filtering, pagination, and sorting"""
 #     # Code to handle retrieving series
 #     pass
 
 
-# @api.route('/series/<int:series_id>', methods=['GET'])
+# @books.route('/series/<int:series_id>', methods=['GET'])
 # def get_single_series(series_id):
 #     """Retrieve a single series by its ID"""
 #     # Code to handle retrieving a series by ID
 #     pass
 
 
-# @api.route('/series/<int:series_id>', methods=['PUT'])
+# @books.route('/series/<int:series_id>', methods=['PUT'])
 # def update_series(series_id):
 #     """Update a series by its ID"""
 #     # Code to handle updating a series by ID
 #     pass
 
 
-# @api.route('/series/<int:series_id>', methods=['DELETE'])
+# @books.route('/series/<int:series_id>', methods=['DELETE'])
 # def delete_series(series_id):
 #     """Delete a series by its ID"""
 #     # Code to handle deleting a series by ID
@@ -480,7 +408,7 @@ def get_authors():
 
 # # ----------- SERIES' BOOKS ROUTE ----------- #
 
-# @api.route('/series/<int:series_id>/books', methods=['GET'])
+# @books.route('/series/<int:series_id>/', methods=['GET'])
 # def get_books_by_series(series_id):
 #     """Get all books that belong to a specific series"""
 #     # Code to handle retrieving all books in a given series
@@ -489,35 +417,35 @@ def get_authors():
 # # ----------- LANGUAGE ROUTES ----------- #
 
 
-# @api.route('/languages', methods=['POST'])
+# @books.route('/languages', methods=['POST'])
 # def create_language():
 #     """Create a new language"""
 #     # Code to handle creating a language
 #     pass
 
 
-# @api.route('/languages', methods=['GET'])
+# @books.route('/languages', methods=['GET'])
 # def get_languages():
 #     """Retrieve a list of languages with filtering, pagination, and sorting"""
 #     # Code to handle retrieving languages
 #     pass
 
 
-# @api.route('/languages/<int:language_id>', methods=['GET'])
+# @books.route('/languages/<int:language_id>', methods=['GET'])
 # def get_language(language_id):
 #     """Retrieve a single language by its ID"""
 #     # Code to handle retrieving a language by ID
 #     pass
 
 
-# @api.route('/languages/<int:language_id>', methods=['PUT'])
+# @books.route('/languages/<int:language_id>', methods=['PUT'])
 # def update_language(language_id):
 #     """Update a language by its ID"""
 #     # Code to handle updating a language by ID
 #     pass
 
 
-# @api.route('/languages/<int:language_id>', methods=['DELETE'])
+# @books.route('/languages/<int:language_id>', methods=['DELETE'])
 # def delete_language(language_id):
 #     """Delete a language by its ID"""
 #     # Code to handle deleting a language by ID
@@ -526,7 +454,7 @@ def get_authors():
 
 # # ----------- LANGUAGE'S BOOKS ROUTE ----------- #
 
-# @api.route('/languages/<int:language_id>/books', methods=['GET'])
+# @books.route('/languages/<int:language_id>/', methods=['GET'])
 # def get_books_by_language(language_id):
 #     """Get all books that are in a specific language"""
 #     # Code to handle retrieving all books in a given language
