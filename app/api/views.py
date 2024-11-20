@@ -1,4 +1,4 @@
-from flask import current_app, render_template, request, jsonify
+from flask import current_app, render_template, request, jsonify, Request
 from datetime import datetime
 from flask_login import login_required
 from app.api import api
@@ -14,7 +14,7 @@ from app.api.models import Book, Author, Genre, Language, Series
 def create_book():
     data = request.json
     try:
-        new_book = Book(
+        new_book: Book = Book(
             title=data.get("title", None),
             isbn_10=data.get("isbn_10"),
             isbn_13=data.get("isbn_13"),
@@ -50,6 +50,8 @@ def create_book():
 def update_book(book_id):
     data = request.json
     book = db.get_or_404(Book, book_id)
+    if data is None:
+        return jsonify({"error": "No data provided"}), 400
     try:
         # Update fields based on incoming data
         book.title = data.get("title", book.title)
@@ -144,6 +146,7 @@ def get_book(book_id):
             "publish_place": book.publish_place,
             "edition_name": book.edition_name,
             "subtitle": book.subtitle,
+            "authors": [{"id": author.id, "name": author.name} for author in book.authors],
         }
     )
 
@@ -160,20 +163,77 @@ def delete_book(book_id):
         return jsonify({"error": str(e)}), 400
 
 
-# # TODO: implement Search book by title/isbn/Author
-# @api.route('/books/search', methods=['GET'])
-# def search_books():
-#     """Search for books by title, ISBN, author, etc."""
-#     # Code to handle searching for books
-#     pass
+@api.route('/books/search', methods=['GET'])
+def search_books():
+    """Search for books by title, ISBN, author, etc."""
+    # Get search parameters from the query string
+    title = request.args.get('title', type=str)
+    isbn = request.args.get('isbn', type=str)
+    author_name = request.args.get('author', type=str)
+    query = db.session.query(Book)
+    if title:
+        query = query.filter(Book.title.ilike(f'%{title}%'))
+    if isbn:
+        query = query.filter((Book.isbn_10 == isbn) | (Book.isbn_13 == isbn))
+    if author_name:
+        query = query.join(Author).filter(
+            Author.name.ilike(f'%{author_name}%'))
+    books = query.all()
+    # serialize the results
+    results = []
+    for book in books:
+        results.append({
+            "id": book.id,
+            "title": book.title,
+            "isbn_10": book.isbn_10,
+            "isbn_13": book.isbn_13,
+            "publish_date": book.publish_date,
+            "description": book.description,
+            "author_id": book.author_id,
+            "cover_url": book.cover_url,
+            "current_price": book.current_price,
+            "previous_price": book.previous_price,
+            "physical_format": book.physical_format,
+            "number_of_pages": book.number_of_pages,
+            "editorial": book.editorial,
+            "alejandria_isbn": book.alejandria_isbn,
+            "publisher_id": book.publisher_id,
+            "physical_dimensions": book.physical_dimensions,
+            "weight": book.weight,
+            "publish_place": book.publish_place,
+            "edition_name": book.edition_name,
+            "subtitle": book.subtitle,
+        })
+    if not books:
+        return jsonify({"message": "No books found matching the search criteria"}), 404
+    return jsonify(results)
 
 
-# # TODO: add author to a book
-# @api.route('/books/<int:book_id>/authors', methods=['POST'])
-# def add_authors_to_book(book_id):
-#     """Add authors to a book"""
-#     # Code to handle adding authors to a book
-#     pass
+@api.route('/books/<int:book_id>/authors', methods=['POST'])
+def add_authors_to_book(book_id):
+    """Associate existing authors to a book using author IDs"""
+    # Retrieve the book by its ID
+    book = db.get_or_404(Book, book_id)
+
+    # Retrieve author IDs from the request body
+    author_ids = request.json.get('author_ids')
+    if not author_ids or not isinstance(author_ids, list):
+        return jsonify({"error": "Invalid or missing 'author_ids' data"}), 400
+
+    try:
+        # Fetch authors by their IDs and add them to the book
+        authors = Author.query.filter(Author.id.in_(author_ids)).all()
+        if not authors:
+            return jsonify({"error": "No valid authors found"}), 404
+
+        for author in authors:
+            if author not in book.authors:
+                book.authors.append(author)
+        db.session.commit()
+        return jsonify({"message": f"Authors added successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
 
 
 # # TODO: remove author to a book
@@ -218,11 +278,29 @@ def delete_book(book_id):
 
 # # ----------- AUTHOR ROUTES -----------
 
-# @api.route('/authors', methods=['POST'])
-# def create_author():
-#     """Create a new author"""
-#     # Code to handle creating an author
-#     pass
+@api.route('/authors', methods=['POST'])
+def create_author():
+    """Create a new author"""
+    data = request.json
+    name = data.get("name")
+    if not name:
+        return jsonify({"error": "Author 'name' is required"}), 400
+
+    author = Author(
+        name=name,
+        birth_date=datetime.strptime(
+            data.get("birth_date"), "%Y-%m-%d").date() if "birth_date" in data else None,
+        death_date=datetime.strptime(
+            data.get("death_date"), "%Y-%m-%d").date() if "death_date" in data else None,
+        biography=data.get("biography")
+    )
+    try:
+        db.session.add(author)
+        db.session.commit()
+        return jsonify({"author_id": author.id, "message": "Author created successfully"}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
 
 
 # @api.route('/authors', methods=['GET'])

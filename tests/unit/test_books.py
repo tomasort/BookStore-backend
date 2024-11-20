@@ -105,3 +105,173 @@ def test_delete_book(client, test_book_data):
     # Verify that the book no longer exists
     get_response = client.get(f"/api/books/{book_id}")
     assert get_response.status_code == 404
+
+
+def test_search_books_by_title(client, test_book_data):
+    # Create a book to search for
+    create_response = client.post(
+        "/api/books",
+        data=json.dumps(test_book_data),
+        content_type="application/json"
+    )
+    assert create_response.status_code == 201
+
+    # Search by title
+    search_response = client.get("/api/books/search?title=Test%20Book")
+    assert search_response.status_code == 200
+
+    # Verify the search results
+    data = search_response.get_json()
+    assert isinstance(data, list)
+    assert len(data) > 0
+    assert any(book["title"] == test_book_data["title"] for book in data)
+
+
+def test_search_books_by_isbn(client, test_book_data):
+    # Create a book to search for
+    create_response = client.post(
+        "/api/books",
+        data=json.dumps(test_book_data),
+        content_type="application/json"
+    )
+    assert create_response.status_code == 201
+
+    # Search by ISBN-10
+    isbn_10 = test_book_data["isbn_10"]
+    search_response = client.get(f"/api/books/search?isbn={isbn_10}")
+    assert search_response.status_code == 200
+
+    # Verify the search results
+    data = search_response.get_json()
+    assert isinstance(data, list)
+    assert len(data) > 0
+    assert any(book["isbn_10"] == isbn_10 for book in data)
+
+
+def test_search_books_no_results(client):
+    # Search for a non-existing book
+    search_response = client.get("/api/books/search?title=NonExistentTitle")
+    assert search_response.status_code == 404
+
+    # Verify the response contains an appropriate message
+    data = search_response.get_json()
+    assert "message" in data
+    assert data["message"] == "No books found matching the search criteria"
+
+
+# def test_search_books_by_author(client, test_book_data, test_author):
+#     # Create an author and associate the book
+#     create_author_response = client.post(
+#         "/api/authors",
+#         data=json.dumps(test_author),
+#         content_type="application/json"
+#     )
+#     assert create_author_response.status_code == 201
+#     author_id = create_author_response.get_json()["author_id"]
+
+#     # Add the author ID to the book data and create the book
+#     test_book_data["author_id"] = author_id
+#     create_book_response = client.post(
+#         "/api/books",
+#         data=json.dumps(test_book_data),
+#         content_type="application/json"
+#     )
+#     assert create_book_response.status_code == 201
+
+#     # Search by author's name
+#     author_name = test_author["name"]
+#     search_response = client.get(f"/api/books/search?author={author_name}")
+#     assert search_response.status_code == 200
+
+#     # Verify the search results
+#     data = search_response.get_json()
+#     assert isinstance(data, list)
+#     assert len(data) > 0
+#     assert any(book["author_id"] == author_id for book in data)
+
+
+# def test_combined_search_books(client, test_book_data, test_author):
+#     # Create an author and associate the book
+#     create_author_response = client.post(
+#         "/api/authors",
+#         data=json.dumps(test_author),
+#         content_type="application/json"
+#     )
+#     assert create_author_response.status_code == 201
+#     author_id = create_author_response.get_json()["author_id"]
+
+#     # Add the author ID to the book data and create the book
+#     test_book_data["author_id"] = author_id
+#     create_book_response = client.post(
+#         "/api/books",
+#         data=json.dumps(test_book_data),
+#         content_type="application/json"
+#     )
+#     assert create_book_response.status_code == 201
+
+#     # Perform a combined search by title and author
+#     search_response = client.get(
+#         f"/api/books/search?title={test_book_data['title']}&author={test_author['name']}"
+#     )
+#     assert search_response.status_code == 200
+
+#     # Verify the search results
+#     data = search_response.get_json()
+#     assert isinstance(data, list)
+#     assert len(data) > 0
+#     assert any(book["title"] == test_book_data["title"] and book["author_id"] == author_id for book in data)
+
+def test_create_author(client, test_authors_data):
+    # Test creating a new author
+    response = client.post(
+        "/api/authors",
+        data=json.dumps(test_authors_data[0]),
+        content_type="application/json"
+    )
+    print(response.get_json())
+    assert response.status_code == 201
+    data = response.get_json()
+    assert "author_id" in data
+    assert data["message"] == "Author created successfully"
+
+
+def test_add_authors_to_book(client, test_book_data, test_authors_data):
+    # Create a book to which authors will be added
+    create_book_response = client.post(
+        "/api/books",
+        data=json.dumps(test_book_data),
+        content_type="application/json"
+    )
+    assert create_book_response.status_code == 201
+    book_id = create_book_response.get_json()["book_id"]
+    # Create two authors
+    author_ids = []
+    for author in test_authors_data:
+        create_author_response = client.post(
+            "/api/authors",
+            data=json.dumps(author),
+            content_type="application/json"
+        )
+        author_ids.append(create_author_response.get_json()["author_id"])
+        assert create_author_response.status_code == 201
+    # Send a POST request to add authors to the book
+    add_authors_response = client.post(
+        f"/api/books/{book_id}/authors",
+        data=json.dumps({"author_ids": author_ids}),
+        content_type="application/json"
+    )
+    # Verify that the response is successful
+    print(add_authors_response.get_json())
+    assert add_authors_response.status_code == 200
+    data = add_authors_response.get_json()
+    assert data["message"] == "Authors added successfully"
+
+    # Verify that the authors were correctly added to the book
+    get_book_response = client.get(f"/api/books/{book_id}")
+    assert get_book_response.status_code == 200
+    book_data = get_book_response.get_json()
+
+    # Check that the authors were added
+    new_author_ids = [author["id"] for author in book_data.get("authors", [])]
+    for author_id in author_ids:
+        assert author_id in new_author_ids

@@ -76,10 +76,22 @@ def test_book_data():
 
 
 @pytest.fixture()
-def test_author():
-    return {
-        "name": "Test Author",
-        "birth_date": "1980-01-01",
-        "death_date": "2020-01-01",
-        "biography": "A test author biography",
-    }
+def test_authors_data():
+    return [
+        {
+            "name": "Test Author 1",
+            "birth_date": "1980-01-01",
+            "biography": "A test author 1 biography",
+        },
+        {
+            "name": "Test Author 2",
+            "birth_date": "1985-01-01",
+            "death_date": "2020-01-01",
+            "biography": "A test author 2 biography",
+        },
+        {
+            "name": "Test Author 3",
+            "birth_date": "1990-01-01",
+            "biography": "A test author 3 biography",
+        },
+    ]

@@ -19,8 +19,7 @@ book_languages = sa.Table(
     sa.Column("book_id", sa.Integer, sa.ForeignKey(
         "book.id"), primary_key=True),
     sa.Column(
-        "language_id", sa.Integer,
-        sa.ForeignKey("language.id"), primary_key=True
+        "language_id", sa.Integer, sa.ForeignKey("language.id"), primary_key=True
     ),
 )
 
@@ -51,7 +50,7 @@ class Author(db.Model):
     biography: so.Mapped[Optional[str]] = so.mapped_column(sa.Text)
 
     # Define the relationship with books
-    books: so.WriteOnlyMapped[list["Book"]] = so.relationship(
+    books: so.Mapped[list["Book"]] = so.relationship(
         "Book", secondary=book_authors, back_populates="authors"
     )
 
@@ -70,6 +69,9 @@ class Book(db.Model):
     )
     publish_date: so.Mapped[Optional[sa.Date]] = so.mapped_column(sa.Date)
     description: so.Mapped[Optional[str]] = so.mapped_column(sa.Text)
+    author_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.Integer, sa.ForeignKey("author.id")
+    )
     cover_url: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     current_price: so.Mapped[Optional[float]] = so.mapped_column(sa.Float)
     previous_price: so.Mapped[Optional[float]] = so.mapped_column(sa.Float)
@@ -89,25 +91,20 @@ class Book(db.Model):
     subtitle: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
 
     # Define the relationships
-    authors: so.WriteOnlyMapped[list["Author"]] = so.relationship(
-        "Author", secondary=book_authors,
-        back_populates="books", passive_deletes=True
+    authors: so.Mapped[list["Author"]] = so.relationship(
+        "Author", secondary=book_authors, back_populates="books", passive_deletes=True
     )
-    genres: so.WriteOnlyMapped[list["Genre"]] = so.relationship(
-        "Genre", secondary=book_genres,
-        back_populates="books", passive_deletes=True
+    genres: so.Mapped[list["Genre"]] = so.relationship(
+        "Genre", secondary=book_genres, back_populates="books", passive_deletes=True
     )
     publisher: so.Mapped[Optional["Publisher"]] = so.relationship(
-        "Publisher", back_populates="books",
-        passive_deletes=True
+        "Publisher", back_populates="books", passive_deletes=True
     )
-    languages: so.WriteOnlyMapped[list["Language"]] = so.relationship(
-        "Language", secondary=book_languages,
-        back_populates="books", passive_deletes=True
+    languages: so.Mapped[list["Language"]] = so.relationship(
+        "Language", secondary=book_languages, back_populates="books", passive_deletes=True
     )
-    series: so.WriteOnlyMapped[list["Series"]] = so.relationship(
-        "Series", secondary=book_series,
-        back_populates="books", passive_deletes=True
+    series: so.Mapped[list["Series"]] = so.relationship(
+        "Series", secondary=book_series, back_populates="books", passive_deletes=True
     )
 
     def __repr__(self) -> str:
@@ -119,7 +116,7 @@ class Genre(db.Model):
     name: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
 
     # Define the relationship with books
-    books: so.WriteOnlyMapped[list["Book"]] = so.relationship(
+    books: so.Mapped[list["Book"]] = so.relationship(
         "Book", secondary=book_genres, back_populates="genres"
     )
 
@@ -132,7 +129,7 @@ class Publisher(db.Model):
     name: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
 
     # Define the relationship with books
-    books: so.WriteOnlyMapped['Book'] = so.relationship(
+    books: so.Mapped['Book'] = so.relationship(
         "Book", back_populates="publisher"
     )
 
@@ -145,7 +142,7 @@ class Language(db.Model):
     name: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
 
     # Define the relationship with books
-    books: so.WriteOnlyMapped[list["Book"]] = so.relationship(
+    books: so.Mapped[list["Book"]] = so.relationship(
         "Book", secondary=book_languages, back_populates="languages"
     )
 
@@ -158,7 +155,7 @@ class Series(db.Model):
     name: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
 
     # Define the relationship with books
-    books: so.WriteOnlyMapped[list["Book"]] = so.relationship(
+    books: so.Mapped[list["Book"]] = so.relationship(
         "Book", secondary=book_series, back_populates="series"
     )
 
