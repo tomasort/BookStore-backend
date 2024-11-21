@@ -307,7 +307,6 @@ def add_series_to_book(book_id):
         return jsonify({"error": str(e)}), 400
 
 
-# TODO: remove series to a book
 @books.route('/<int:book_id>/series/<int:series_id>', methods=['DELETE'])
 def remove_series_from_book(book_id, series_id):
     """Remove a series from a book"""
@@ -320,41 +319,3 @@ def remove_series_from_book(book_id, series_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
-
-
-# # ----------- GENRE'S BOOKS ROUTE ----------- #
-
-# @books.route('/genres/<int:genre_id>/', methods=['GET'])
-# def get_books_by_genre(genre_id):
-#     """Get all books that belong to a specific genre"""
-#     # Code to handle retrieving all books associated with a given genre
-#     pass
-
-
-# # ----------- PUBLISHER'S BOOKS ROUTE ----------- #
-
-# @books.route('/publishers/<int:publisher_id>/', methods=['GET'])
-# def get_books_by_publisher(publisher_id):
-#     """Get all books published by a specific publisher"""
-#     # Code to handle retrieving all books by a given publisher
-#     pass
-
-
-
-# # ----------- SERIES' BOOKS ROUTE ----------- #
-
-# @books.route('/series/<int:series_id>/', methods=['GET'])
-# def get_books_by_series(series_id):
-#     """Get all books that belong to a specific series"""
-#     # Code to handle retrieving all books in a given series
-#     pass
-
-
-
-# # ----------- LANGUAGE'S BOOKS ROUTE ----------- #
-
-# @books.route('/languages/<int:language_id>/', methods=['GET'])
-# def get_books_by_language(language_id):
-#     """Get all books that are in a specific language"""
-#     # Code to handle retrieving all books in a given language
-#     pass
