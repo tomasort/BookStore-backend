@@ -313,42 +313,6 @@ def remove_author_from_book(book_id, author_id):
 #     # Code to handle retrieving all books in a given series
 #     pass
 
-# # ----------- LANGUAGE ROUTES ----------- #
-
-
-# @books.route('/languages', methods=['POST'])
-# def create_language():
-#     """Create a new language"""
-#     # Code to handle creating a language
-#     pass
-
-
-# @books.route('/languages', methods=['GET'])
-# def get_languages():
-#     """Retrieve a list of languages with filtering, pagination, and sorting"""
-#     # Code to handle retrieving languages
-#     pass
-
-
-# @books.route('/languages/<int:language_id>', methods=['GET'])
-# def get_language(language_id):
-#     """Retrieve a single language by its ID"""
-#     # Code to handle retrieving a language by ID
-#     pass
-
-
-# @books.route('/languages/<int:language_id>', methods=['PUT'])
-# def update_language(language_id):
-#     """Update a language by its ID"""
-#     # Code to handle updating a language by ID
-#     pass
-
-
-# @books.route('/languages/<int:language_id>', methods=['DELETE'])
-# def delete_language(language_id):
-#     """Delete a language by its ID"""
-#     # Code to handle deleting a language by ID
-#     pass
 
 
 # # ----------- LANGUAGE'S BOOKS ROUTE ----------- #
