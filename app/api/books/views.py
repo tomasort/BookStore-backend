@@ -288,87 +288,12 @@ def remove_author_from_book(book_id, author_id):
 #     pass
 
 
-# # ----------- GENRE ROUTES ----------- #
-
-
-# @books.route('/genres', methods=['POST'])
-# def create_genre():
-#     """Create a new genre"""
-#     # Code to handle creating a genre
-#     pass
-
-
-# @books.route('/genres', methods=['GET'])
-# def get_genres():
-#     """Retrieve a list of genres with filtering, pagination, and sorting"""
-#     # Code to handle retrieving genres
-#     pass
-
-
-# @books.route('/genres/<int:genre_id>', methods=['GET'])
-# def get_genre(genre_id):
-#     """Retrieve a single genre by its ID"""
-#     # Code to handle retrieving a genre by ID
-#     pass
-
-
-# @books.route('/genres/<int:genre_id>', methods=['PUT'])
-# def update_genre(genre_id):
-#     """Update a genre by its ID"""
-#     # Code to handle updating a genre by ID
-#     pass
-
-
-# @books.route('/genres/<int:genre_id>', methods=['DELETE'])
-# def delete_genre(genre_id):
-#     """Delete a genre by its ID"""
-#     # Code to handle deleting a genre by ID
-#     pass
-
-
 # # ----------- GENRE'S BOOKS ROUTE ----------- #
 
 # @books.route('/genres/<int:genre_id>/', methods=['GET'])
 # def get_books_by_genre(genre_id):
 #     """Get all books that belong to a specific genre"""
 #     # Code to handle retrieving all books associated with a given genre
-#     pass
-
-# # ----------- PUBLISHER ROUTES ----------- #
-
-
-# @books.route('/publishers', methods=['POST'])
-# def create_publisher():
-#     """Create a new publisher"""
-#     # Code to handle creating a publisher
-#     pass
-
-
-# @books.route('/publishers', methods=['GET'])
-# def get_publishers():
-#     """Retrieve a list of publishers with filtering, pagination, and sorting"""
-#     # Code to handle retrieving publishers
-#     pass
-
-
-# @books.route('/publishers/<int:publisher_id>', methods=['GET'])
-# def get_publisher(publisher_id):
-#     """Retrieve a single publisher by its ID"""
-#     # Code to handle retrieving a publisher by ID
-#     pass
-
-
-# @books.route('/publishers/<int:publisher_id>', methods=['PUT'])
-# def update_publisher(publisher_id):
-#     """Update a publisher by its ID"""
-#     # Code to handle updating a publisher by ID
-#     pass
-
-
-# @books.route('/publishers/<int:publisher_id>', methods=['DELETE'])
-# def delete_publisher(publisher_id):
-#     """Delete a publisher by its ID"""
-#     # Code to handle deleting a publisher by ID
 #     pass
 
 
