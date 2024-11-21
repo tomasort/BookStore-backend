@@ -237,15 +237,27 @@ def add_authors_to_book(book_id):
 
 
 # # TODO: remove author to a book
-# @books.route('//<int:book_id>/authors/<int:author_id>', methods=['DELETE'])
-# def remove_author_from_book(book_id, author_id):
-#     """Remove an author from a book"""
-#     # Code to handle removing an author from a book
-#     pass
+@books.route('/<int:book_id>/authors/<int:author_id>', methods=['DELETE'])
+def remove_author_from_book(book_id, author_id):
+    """Remove an author from a book"""
+    # Retrieve the book by its ID
+    book = db.get_or_404(Book, book_id)
+
+    # Retrieve the author by their ID
+    author = Author.query.get_or_404(author_id)
+
+    try:
+        # Remove the author from the book
+        book.authors.remove(author)
+        db.session.commit()
+        return jsonify({"message": f"Author removed successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
 
 
 # # TODO: add genre to a book
-# @books.route('//<int:book_id>/genres', methods=['POST'])
+# @books.route('/<int:book_id>/genres', methods=['POST'])
 # def add_genres_to_book(book_id):
 #     """Add genres to a book"""
 #     # Code to handle adding genres to a book
@@ -253,7 +265,7 @@ def add_authors_to_book(book_id):
 
 
 # # TODO: add remove to a book
-# @books.route('//<int:book_id>/genres/<int:genre_id>', methods=['DELETE'])
+# @books.route('/<int:book_id>/genres/<int:genre_id>', methods=['DELETE'])
 # def remove_genre_from_book(book_id, genre_id):
 #     """Remove a genre from a book"""
 #     # Code to handle removing a genre from a book
@@ -261,7 +273,7 @@ def add_authors_to_book(book_id):
 
 
 # # TODO: add series to a book
-# @books.route('//<int:book_id>/series', methods=['POST'])
+# @books.route('/<int:book_id>/series', methods=['POST'])
 # def add_series_to_book(book_id):
 #     """Add series to a book"""
 #     # Code to handle adding series to a book
@@ -269,7 +281,7 @@ def add_authors_to_book(book_id):
 
 
 # # TODO: remove series to a book
-# @books.route('//<int:book_id>/series/<int:series_id>', methods=['DELETE'])
+# @books.route('/<int:book_id>/series/<int:series_id>', methods=['DELETE'])
 # def remove_series_from_book(book_id, series_id):
 #     """Remove a series from a book"""
 #     # Code to handle removing a series from a book

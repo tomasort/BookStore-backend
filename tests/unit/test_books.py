@@ -220,3 +220,37 @@ def test_search_books_no_results(client):
 #     assert isinstance(data, list)
 #     assert len(data) > 0
 #     assert any(book["title"] == test_book_data["title"] and book["author_id"] == author_id for book in data)
+
+def test_remove_author_from_book(client, test_book_data, test_authors_data):
+    # Create an author and associate the book
+    create_author_response = client.post(
+        "/api/authors",
+        data=json.dumps(test_authors_data[0]),
+        content_type="application/json"
+    )
+    assert create_author_response.status_code == 201
+    author_id = create_author_response.get_json()["author_id"]
+
+    # Add the author ID to the book data and create the book
+    test_book_data["author_id"] = author_id
+    create_book_response = client.post(
+        "/api/books",
+        data=json.dumps(test_book_data),
+        content_type="application/json"
+    )
+    assert create_book_response.status_code == 201
+
+    # Remove the author from the book
+    update_data = {"author_id": None}
+    update_response = client.put(
+        f"/api/books/{create_book_response.get_json()['book_id']}",
+        data=json.dumps(update_data),
+        content_type="application/json",
+    )
+    assert update_response.status_code == 200
+
+    # Retrieve the updated book to verify changes
+    response = client.get(
+        f"/api/books/{create_book_response.get_json()['book_id']}")
+    book = response.get_json()
+    assert book["author_id"] is None
