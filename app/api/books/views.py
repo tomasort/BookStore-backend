@@ -6,8 +6,6 @@ from app.api.models import Book, Author
 from app.api.books import books
 
 
-# ----------- BOOK ROUTES ----------- #
-
 # TODO: use longin required for create, update, delete routes
 
 @books.route("", methods=["POST"])
@@ -305,42 +303,6 @@ def remove_author_from_book(book_id, author_id):
 #     # Code to handle retrieving all books by a given publisher
 #     pass
 
-# # ----------- SERIES ROUTES ----------- #
-
-
-# @books.route('/series', methods=['POST'])
-# def create_series():
-#     """Create a new series"""
-#     # Code to handle creating a series
-#     pass
-
-
-# @books.route('/series', methods=['GET'])
-# def get_series():
-#     """Retrieve a list of series with filtering, pagination, and sorting"""
-#     # Code to handle retrieving series
-#     pass
-
-
-# @books.route('/series/<int:series_id>', methods=['GET'])
-# def get_single_series(series_id):
-#     """Retrieve a single series by its ID"""
-#     # Code to handle retrieving a series by ID
-#     pass
-
-
-# @books.route('/series/<int:series_id>', methods=['PUT'])
-# def update_series(series_id):
-#     """Update a series by its ID"""
-#     # Code to handle updating a series by ID
-#     pass
-
-
-# @books.route('/series/<int:series_id>', methods=['DELETE'])
-# def delete_series(series_id):
-#     """Delete a series by its ID"""
-#     # Code to handle deleting a series by ID
-#     pass
 
 
 # # ----------- SERIES' BOOKS ROUTE ----------- #

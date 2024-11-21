@@ -1,11 +1,7 @@
-from flask import current_app, render_template, request, jsonify, Request
-from datetime import datetime
-from flask_login import login_required
+from flask import request, jsonify
 from app import db
 from app.api.models import Series
 from app.api.series import series
-
-# ----------- SERIES ROUTES ----------- #
 
 
 @series.route('', methods=['POST'])
