@@ -88,6 +88,7 @@ def update_book(book_id):
 @books.route("", methods=["GET"])
 def get_books():
     # TODO: implement query parameters for page, limit, author, genre, language, publisher, series, search, sort
+    # TODO: implement pagination
     books = db.session.execute(db.select(Book)).scalars()
     return jsonify(
         [
