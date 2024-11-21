@@ -2,7 +2,7 @@ from flask import current_app, render_template, request, jsonify, Request
 from datetime import datetime
 from flask_login import login_required
 from app import db
-from app.api.models import Book, Author
+from app.api.models import Book, Author, Genre, Series
 from app.api.books import books
 
 
@@ -207,7 +207,7 @@ def search_books():
     return jsonify(results)
 
 
-@books.route('/<int:book_id>/authors', methods=['POST'])
+@books.route('/<int:book_id>/authors', methods=['PUT'])
 def add_authors_to_book(book_id):
     """Associate existing authors to a book using author IDs"""
     # Retrieve the book by its ID
@@ -234,7 +234,6 @@ def add_authors_to_book(book_id):
         return jsonify({"error": str(e)}), 400
 
 
-# # TODO: remove author to a book
 @books.route('/<int:book_id>/authors/<int:author_id>', methods=['DELETE'])
 def remove_author_from_book(book_id, author_id):
     """Remove an author from a book"""
@@ -242,7 +241,7 @@ def remove_author_from_book(book_id, author_id):
     book = db.get_or_404(Book, book_id)
 
     # Retrieve the author by their ID
-    author = Author.query.get_or_404(author_id)
+    author = db.get_or_404(Author, author_id)
 
     try:
         # Remove the author from the book
@@ -254,36 +253,73 @@ def remove_author_from_book(book_id, author_id):
         return jsonify({"error": str(e)}), 400
 
 
-# # TODO: add genre to a book
-# @books.route('/<int:book_id>/genres', methods=['POST'])
-# def add_genres_to_book(book_id):
-#     """Add genres to a book"""
-#     # Code to handle adding genres to a book
-#     pass
+@books.route('/<int:book_id>/genres', methods=['PUT'])
+def add_genres_to_book(book_id):
+    """Add genres to a book"""
+    book = db.get_or_404(Book, book_id)
+    genre_ids = request.json.get('genre_ids')
+    if not genre_ids or not isinstance(genre_ids, list):
+        return jsonify({"error": "Invalid or missing 'genre_ids' data"}), 400
+    try:
+        genres = Genre.query.filter(Genre.id.in_(genre_ids)).all()
+        for genre in genres:
+            if genre not in book.genres:
+                book.genres.append(genre)
+        db.session.commit()
+        return jsonify({"message": "Genres added successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
 
 
-# # TODO: add remove to a book
-# @books.route('/<int:book_id>/genres/<int:genre_id>', methods=['DELETE'])
-# def remove_genre_from_book(book_id, genre_id):
-#     """Remove a genre from a book"""
-#     # Code to handle removing a genre from a book
-#     pass
+
+@books.route('/<int:book_id>/genres/<int:genre_id>', methods=['DELETE'])
+def remove_genre_from_book(book_id, genre_id):
+    """Remove a genre from a book"""
+    book = db.get_or_404(Book, book_id)
+    genre = db.get_or_404(Genre, genre_id)
+    try:
+        book.genres.remove(genre)
+        db.session.commit()
+        return jsonify({"message": "Genre removed successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400  
 
 
-# # TODO: add series to a book
-# @books.route('/<int:book_id>/series', methods=['POST'])
-# def add_series_to_book(book_id):
-#     """Add series to a book"""
-#     # Code to handle adding series to a book
-#     pass
+@books.route('/<int:book_id>/series', methods=['PUT'])
+def add_series_to_book(book_id):
+    """Add series to a book"""
+    book = db.get_or_404(Book, book_id)
+    data = request.json
+    series = data.get("series_id")
+    if not series or not isinstance(series, list):
+        return jsonify({"error": "Invalid or missing 'series' data"}), 400
+    try:
+        for s in series:
+            book_series = db.get_or_404(Series, s)
+            if book_series not in book.series:
+                book.series.append(book_series)
+        db.session.commit()
+        return jsonify({"message": "Series added successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
 
 
-# # TODO: remove series to a book
-# @books.route('/<int:book_id>/series/<int:series_id>', methods=['DELETE'])
-# def remove_series_from_book(book_id, series_id):
-#     """Remove a series from a book"""
-#     # Code to handle removing a series from a book
-#     pass
+# TODO: remove series to a book
+@books.route('/<int:book_id>/series/<int:series_id>', methods=['DELETE'])
+def remove_series_from_book(book_id, series_id):
+    """Remove a series from a book"""
+    book = db.get_or_404(Book, book_id)
+    series = db.get_or_404(Series, series_id)
+    try:
+        book.series.remove(series)
+        db.session.commit()
+        return jsonify({"message": "Series removed successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
 
 
 # # ----------- GENRE'S BOOKS ROUTE ----------- #

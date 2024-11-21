@@ -34,8 +34,8 @@ def test_add_authors_to_book(client, test_book_data, test_authors_data):
         )
         author_ids.append(create_author_response.get_json()["author_id"])
         assert create_author_response.status_code == 201
-    # Send a POST request to add authors to the book
-    add_authors_response = client.post(
+    # Send a PUT request to add authors to the book
+    add_authors_response = client.put(
         f"/api/books/{book_id}/authors",
         data=json.dumps({"author_ids": author_ids}),
         content_type="application/json"
@@ -55,6 +55,49 @@ def test_add_authors_to_book(client, test_book_data, test_authors_data):
     new_author_ids = [author["id"] for author in book_data.get("authors", [])]
     for author_id in author_ids:
         assert author_id in new_author_ids
+
+
+def test_remove_authors_from_book(client, test_book_data, test_authors_data):
+    # Create a book to which authors will be added
+    create_book_response = client.post(
+        "/api/books",
+        data=json.dumps(test_book_data),
+        content_type="application/json"
+    )
+    assert create_book_response.status_code == 201
+    book_id = create_book_response.get_json()["book_id"]
+    # Create two authors
+    author_ids = []
+    for author in test_authors_data:
+        create_author_response = client.post(
+            "/api/authors",
+            data=json.dumps(author),
+            content_type="application/json"
+        )
+        author_ids.append(create_author_response.get_json()["author_id"])
+        assert create_author_response.status_code == 201
+    # Add the authors to the book
+    add_authors_response = client.put(
+        f"/api/books/{book_id}/authors",
+        data=json.dumps({"author_ids": author_ids}),
+        content_type="application/json"
+    )
+    assert add_authors_response.status_code == 200
+    # Send a DELETE request to remove the authors from the book
+    remove_authors_response = client.delete(
+        f"/api/books/{book_id}/authors/{author_ids[0]}",
+        content_type="application/json"
+    )
+    # Verify that the response is successful
+    assert remove_authors_response.status_code == 200
+    data = remove_authors_response.get_json()
+    assert data["message"] == "Author removed successfully"
+
+    # Verify that the authors were correctly removed from the book
+    get_book_response = client.get(f"/api/books/{book_id}")
+    assert get_book_response.status_code == 200
+    book_data = get_book_response.get_json()
+    assert len(book_data.get("authors", [])) == len(author_ids) - 1
 
 
 def test_get_authors(client, test_authors_data):
@@ -168,7 +211,7 @@ def test_get_author_books(client, test_book_data, test_authors_data):
     assert create_author_response.status_code == 201
     author_id = create_author_response.get_json()["author_id"]
     # Add the author to the book
-    add_authors_response = client.post(
+    add_authors_response = client.put(
         f"/api/books/{book_id}/authors",
         data=json.dumps({"author_ids": [author_id]}),
         content_type="application/json"

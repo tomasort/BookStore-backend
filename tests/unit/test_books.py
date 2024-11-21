@@ -159,98 +159,146 @@ def test_search_books_no_results(client):
     assert data["message"] == "No books found matching the search criteria"
 
 
-# def test_search_books_by_author(client, test_book_data, test_author):
-#     # Create an author and associate the book
-#     create_author_response = client.post(
-#         "/api/authors",
-#         data=json.dumps(test_author),
-#         content_type="application/json"
-#     )
-#     assert create_author_response.status_code == 201
-#     author_id = create_author_response.get_json()["author_id"]
-
-#     # Add the author ID to the book data and create the book
-#     test_book_data["author_id"] = author_id
-#     create_book_response = client.post(
-#         "/api/books",
-#         data=json.dumps(test_book_data),
-#         content_type="application/json"
-#     )
-#     assert create_book_response.status_code == 201
-
-#     # Search by author's name
-#     author_name = test_author["name"]
-#     search_response = client.get(f"/api/books/search?author={author_name}")
-#     assert search_response.status_code == 200
-
-#     # Verify the search results
-#     data = search_response.get_json()
-#     assert isinstance(data, list)
-#     assert len(data) > 0
-#     assert any(book["author_id"] == author_id for book in data)
-
-
-# def test_combined_search_books(client, test_book_data, test_author):
-#     # Create an author and associate the book
-#     create_author_response = client.post(
-#         "/api/authors",
-#         data=json.dumps(test_author),
-#         content_type="application/json"
-#     )
-#     assert create_author_response.status_code == 201
-#     author_id = create_author_response.get_json()["author_id"]
-
-#     # Add the author ID to the book data and create the book
-#     test_book_data["author_id"] = author_id
-#     create_book_response = client.post(
-#         "/api/books",
-#         data=json.dumps(test_book_data),
-#         content_type="application/json"
-#     )
-#     assert create_book_response.status_code == 201
-
-#     # Perform a combined search by title and author
-#     search_response = client.get(
-#         f"/api/books/search?title={test_book_data['title']}&author={test_author['name']}"
-#     )
-#     assert search_response.status_code == 200
-
-#     # Verify the search results
-#     data = search_response.get_json()
-#     assert isinstance(data, list)
-#     assert len(data) > 0
-#     assert any(book["title"] == test_book_data["title"] and book["author_id"] == author_id for book in data)
-
-def test_remove_author_from_book(client, test_book_data, test_authors_data):
-    # Create an author and associate the book
-    create_author_response = client.post(
-        "/api/authors",
-        data=json.dumps(test_authors_data[0]),
+def test_add_genre_to_book(client, test_book_data):
+    # Create a genre and associate the book
+    test_genres_data = {"name": "Fiction"}
+    create_genre_response = client.post(
+        "/api/genres",
+        data=json.dumps(test_genres_data),
         content_type="application/json"
     )
-    assert create_author_response.status_code == 201
-    author_id = create_author_response.get_json()["author_id"]
+    assert create_genre_response.status_code == 201
+    genre_id = create_genre_response.get_json()["genre_id"]
 
-    # Add the author ID to the book data and create the book
-    test_book_data["author_id"] = author_id
+    # add a book to the database
     create_book_response = client.post(
         "/api/books",
         data=json.dumps(test_book_data),
         content_type="application/json"
     )
+    book_id = create_book_response.get_json()["book_id"]
     assert create_book_response.status_code == 201
 
-    # Remove the author from the book
-    update_data = {"author_id": None}
-    update_response = client.put(
-        f"/api/books/{create_book_response.get_json()['book_id']}",
-        data=json.dumps(update_data),
+    # Add the genre to the books
+    update_book_response = client.put(
+        f"/api/books/{book_id}/genres",
+        data=json.dumps({"genre_ids": [genre_id]}),
         content_type="application/json",
     )
-    assert update_response.status_code == 200
 
     # Retrieve the updated book to verify changes
     response = client.get(
         f"/api/books/{create_book_response.get_json()['book_id']}")
-    book = response.get_json()
-    assert book["author_id"] is None
+    assert response.status_code == 200
+
+
+def test_remove_genre_from_book(client, test_book_data):
+    # Create a genre and associate the book
+    test_genres_data = {"name": "Fiction"}
+    create_genre_response = client.post(
+        "/api/genres",
+        data=json.dumps(test_genres_data),
+        content_type="application/json"
+    )
+    assert create_genre_response.status_code == 201
+    genre_id = create_genre_response.get_json()["genre_id"]
+
+    # add a book to the database
+    create_book_response = client.post(
+        "/api/books",
+        data=json.dumps(test_book_data),
+        content_type="application/json"
+    )
+    book_id = create_book_response.get_json()["book_id"]
+    assert create_book_response.status_code == 201
+
+    # Add the genre to the books
+    update_book_response = client.put(
+        f"/api/books/{book_id}/genres",
+        data=json.dumps({"genre_ids": [genre_id]}),
+        content_type="application/json",
+    )
+    assert update_book_response.status_code == 200
+
+    # Remove the genre from the book
+    remove_genre_response = client.delete(
+        f"/api/books/{book_id}/genres/{genre_id}",
+        content_type="application/json",
+    )
+    assert remove_genre_response.status_code == 200
+    # Retrieve the updated book to verify changes
+    response = client.get(f"/api/books/{book_id}")
+    assert response.status_code == 200
+
+
+def test_add_series_to_book(client, test_book_data):
+    # Create a series and associate the book
+    test_series_data = {"name": "Test Series"}
+    create_series_response = client.post(
+        "/api/series",
+        data=json.dumps(test_series_data),
+        content_type="application/json"
+    )
+    assert create_series_response.status_code == 201
+    series_id = create_series_response.get_json()["series_id"]
+
+    # add a book to the database
+    create_book_response = client.post(
+        "/api/books",
+        data=json.dumps(test_book_data),
+        content_type="application/json"
+    )
+    book_id = create_book_response.get_json()["book_id"]
+    assert create_book_response.status_code == 201
+
+    # Add the series to the books
+    update_book_response = client.put(
+        f"/api/books/{book_id}/series",
+        data=json.dumps({"series_id": [series_id]}),
+        content_type="application/json",
+    )
+    print(update_book_response.get_json())
+    assert update_book_response.status_code == 200
+
+    # Retrieve the updated book to verify changes
+    response = client.get(f"/api/books/{book_id}")
+    assert response.status_code == 200
+
+
+def test_remove_series_from_book(client, test_book_data):
+    # Create a series and associate the book
+    test_series_data = {"name": "Test Series"}
+    create_series_response = client.post(
+        "/api/series",
+        data=json.dumps(test_series_data),
+        content_type="application/json"
+    )
+    assert create_series_response.status_code == 201
+    series_id = create_series_response.get_json()["series_id"]
+
+    # add a book to the database
+    create_book_response = client.post(
+        "/api/books",
+        data=json.dumps(test_book_data),
+        content_type="application/json"
+    )
+    book_id = create_book_response.get_json()["book_id"]
+    assert create_book_response.status_code == 201
+
+    # Add the series to the books
+    update_book_response = client.put(
+        f"/api/books/{book_id}/series",
+        data=json.dumps({"series_id": [series_id]}),
+        content_type="application/json",
+    )
+    assert update_book_response.status_code == 200
+
+    # Remove the series from the book
+    remove_series_response = client.delete(
+        f"/api/books/{book_id}/series/{series_id}",
+        content_type="application/json",
+    )
+    assert remove_series_response.status_code == 200
+    # Retrieve the updated book to verify changes
+    response = client.get(f"/api/books/{book_id}")
+    assert response.status_code == 200
