@@ -12,7 +12,7 @@ def create_language():
     try:
         language = Language(
             name=request.json.get("name"),
-        )   
+        )
         db.session.add(language)
         db.session.commit()
         return jsonify({"language_id": language.id, "message": "Language created successfully"}), 201
