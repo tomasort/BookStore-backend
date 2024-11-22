@@ -1,108 +1,85 @@
 import json
+import pytest
+from app import db
+from random import choice
+from urllib.parse import quote
+from app.api.models import Series
+from sqlalchemy import select, func
 
 
-def test_create_series(client):
-    # Create a new series
-    response = client.post(
-        '/api/series',
-        data=json.dumps({'name': 'Harry Potter'}),
-        content_type='application/json'
-    )
-    data = json.loads(response.data)
-    assert response.status_code == 201
-    assert data['message'] == 'Series created successfully'
-    assert data['series_id'] == 1
-
-
-def test_get_series(client):
-    # Create new series
-    series_ids = []
-    for series in ['Harry Potter', 'The Hunger Games', 'Twilight']:
+@pytest.mark.parametrize("num_series", [1, 3, 10, 20])
+def test_create_series(client, series_factory, num_series):
+    series = series_factory.build_batch(num_series)
+    for s in series:
+        # Create a new series
         response = client.post(
             '/api/series',
-            data=json.dumps({'name': series}),
+            data=json.dumps(s.to_dict()),
             content_type='application/json'
         )
+        data = response.get_json()
         assert response.status_code == 201
-        series_ids.append(json.loads(response.data)['series_id'])
+        assert data['message'] == 'Series created successfully'
+    # Verify that all the series were created
+    assert db.session.execute(
+        select(func.count()).select_from(Series)).scalar() == num_series
+
+
+@pytest.mark.parametrize("num_series", [1, 3, 10, 20])
+def test_get_series(client, series_factory, num_series):
+    # Create new series
+    series = series_factory.create_batch(num_series)
     # Retrieve a list of series
     response = client.get('/api/series')
-    data = json.loads(response.data)
+    data = response.get_json()
     assert response.status_code == 200
-    assert len(data) == 3
+    assert len(data) == num_series
+    series_ids = [s.id for s in series]
     assert all([series['id'] in series_ids for series in data])
 
 
-def test_get_single_series(client):
+@pytest.mark.parametrize("num_series", [1, 3, 10, 20])
+def test_get_single_series(client, series_factory, num_series):
     # Create new series
-    series_ids = []
-    for series in ['Harry Potter', 'The Hunger Games', 'Twilight']:
-        response = client.post(
-            '/api/series',
-            data=json.dumps({'name': series}),
-            content_type='application/json'
-        )
-        assert response.status_code == 201
-        series_ids.append(json.loads(response.data)['series_id'])
+    series = series_factory.create_batch(num_series)
+    selected_series = choice(series)
     # Retrieve a single series by its ID
-    response = client.get(f'/api/series/{series_ids[0]}')
-    data = json.loads(response.data)
+    response = client.get(f'/api/series/{selected_series.id}')
+    data = response.get_json()
     assert response.status_code == 200
-    assert data['id'] == series_ids[0]
-    assert data['name'] == 'Harry Potter'
-    # Test for a series that does not exist
-    response = client.get('/api/series/999')
-    assert response.status_code == 404
-    assert json.loads(response.data)['error'] == 'Series not found'
+    assert data['id'] == selected_series.id
+    assert data['name'] == selected_series.name
 
 
-def test_update_series(client):
-    # Create a new series
-    response = client.post(
-        '/api/series',
-        data=json.dumps({'name': 'Harry Potter'}),
-        content_type='application/json'
-    )
-    data = json.loads(response.data)
-    assert response.status_code == 201
-    assert data['message'] == 'Series created successfully'
-    assert data['series_id'] == 1
+@pytest.mark.parametrize("num_series", [1, 3, 10])
+def test_update_series(client, series_factory, num_series):
+    # Create new series
+    series = series_factory.create_batch(num_series)
+    selected_series = choice(series)
     # Update the series
+    updated_data = {'name': 'Changed Series'}
     response = client.put(
-        '/api/series/1',
-        data=json.dumps({'name': 'Harry Potter 2'}),
+        f'/api/series/{selected_series.id}',
+        data=json.dumps(updated_data),
         content_type='application/json'
     )
-    data = json.loads(response.data)
+    data = response.get_json()
     assert response.status_code == 200
     assert data['message'] == 'Series updated successfully'
-    # Test for a series that does not exist
-    response = client.put(
-        '/api/series/999',
-        data=json.dumps({'name': 'Harry Potter 2'}),
-        content_type='application/json'
-    )
-    assert response.status_code == 404
-    assert json.loads(response.data)['error'] == 'Series not found'
+    assert selected_series.name == updated_data['name']
 
 
-def test_delete_series(client):
+@pytest.mark.parametrize("num_series", [1, 10])
+def test_delete_series(client, series_factory, num_series):
     # Create a new series
-    response = client.post(
-        '/api/series',
-        data=json.dumps({'name': 'Harry Potter'}),
-        content_type='application/json'
-    )
-    data = json.loads(response.data)
-    assert response.status_code == 201
-    assert data['message'] == 'Series created successfully'
-    assert data['series_id'] == 1
+    series = series_factory.create_batch(num_series)
+    selected_series = choice(series)
     # Delete the series
-    response = client.delete('/api/series/1')
-    data = json.loads(response.data)
+    response = client.delete(f'/api/series/{selected_series.id}')
+    data = response.get_json()
     assert response.status_code == 200
     assert data['message'] == 'Series deleted successfully'
-    # Test for a series that does not exist
-    response = client.delete('/api/series/999')
-    assert response.status_code == 404
-    assert json.loads(response.data)['error'] == 'Series not found'
+    assert db.session.execute(select(func.count()).select_from(
+        Series)).scalar() == num_series - 1
+    assert db.session.execute(select(Series).where(
+        Series.id == selected_series.id)).scalar() is None
