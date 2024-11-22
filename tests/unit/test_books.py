@@ -1,304 +1,214 @@
 import json
+from random import choice
+import pytest
+from app import db
+from app.api.models import Book
+from sqlalchemy import select, func
+from urllib.parse import quote
 
 
-def test_create_simple_book(client, test_book_data):
-    # Sample book data to create
-    new_book_title = test_book_data['title']
+def test_create_simple_book(client, book_factory):
+    book_factory.create_batch(3)
+    book = book_factory.build()
     # Send a POST request to create a new book
     response = client.post(
         "/api/books",
-        data=json.dumps(test_book_data),
+        data=json.dumps(book.to_dict()),
         content_type="application/json"
     )
     # Assert that the request was successful
-    print(response.get_json())
     assert response.status_code == 201
     response_data = response.get_json()
     assert "book_id" in response_data
-    assert new_book_title in response_data['book_title']
+    # Verify that the book was created
+    assert db.session.execute(select(Book).where(
+        Book.id == response_data["book_id"])).scalar() is not None
 
 
-def test_get_books(client, test_book_data):
-    # add a book to the database
-    response = client.post(
-        "/api/books",
-        data=json.dumps(test_book_data),
-        content_type="application/json"
-    )
+@pytest.mark.parametrize("num_books", [1, 3, 10, 20])
+def test_get_books(client, book_factory, num_books):
+    books = book_factory.create_batch(num_books)
     # Send a GET request to retrieve all books
     response = client.get("/api/books")
     # Assert that the request was successful
     assert response.status_code == 200
     data = response.get_json()
     assert isinstance(data, list)  # Should return a list of books
-    assert len(data) > 0  # The list should not be empty
-    assert data[0]["title"] == test_book_data["title"]
+    assert len(data) == num_books  # The list should not be empty
+    assert data[0]["title"] == books[0].title
+    assert data[-1]["title"] == books[-1].title
 
 
-def test_get_specific_book(client, test_book_data):
-    # add a book to the database
-    create_response = client.post(
-        "/api/books",
-        data=json.dumps(test_book_data),
-        content_type="application/json"
-    )
-    print(create_response.get_json())
-    assert create_response.status_code == 201
-    book_id = create_response.get_json()["book_id"]
-    book_title = create_response.get_json()["book_title"]
-
+@pytest.mark.parametrize("num_books", [1, 10, 20])
+def test_get_specific_book(client, book_factory, num_books):
+    books = book_factory.create_batch(num_books)
     # Send a GET request to retrieve the specific book
-    response = client.get(f"/api/books/{book_id}")
+    test_book = choice(books)
+    response = client.get(f"/api/books/{test_book.id}")
     assert response.status_code == 200
-    book = response.get_json()
-    assert book["id"] == book_id
-    assert book["title"] == book_title
+    returned_book = response.get_json()
+    assert returned_book["id"] == test_book.id
+    assert returned_book["title"] == test_book.title
 
 
-def test_update_book(client, test_book_data):
+@pytest.mark.parametrize("num_books", [1, 10, 20])
+def test_update_book(client, book_factory, num_books):
     # Create a book to update
-    create_response = client.post(
-        "/api/books",
-        data=json.dumps(test_book_data),
-        content_type="application/json"
-    )
-    assert create_response.status_code == 201
-    book_id = create_response.get_json()["book_id"]
-
+    books = book_factory.create_batch(num_books)
     # Update the book's title
-    update_data = {"title": "Updated Test Book"}
+    update_data = {"title": "Updated Test Book", "isbn_10": "1234567890"}
+    book_id = choice(books).id
     update_response = client.put(
         f"/api/books/{book_id}",
         data=json.dumps(update_data),
         content_type="application/json",
     )
-
-    print(update_response.get_json())
     # Assert that the update was successful
+    print(update_response.get_json())
     assert update_response.status_code == 200
+    # Verify that the book was updated
+    updated_book: Book | None = db.session.execute(select(Book).where(
+        Book.id == book_id)).scalar()
+    if updated_book is None:
+        assert False
+    assert updated_book.title == update_data["title"]
+    assert updated_book.isbn_10 == update_data["isbn_10"]
 
-    # Retrieve the updated book to verify changes
-    response = client.get(f"/api/books/{book_id}")
-    book = response.get_json()
-    assert book["title"] == "Updated Test Book"
 
-
-def test_delete_book(client, test_book_data):
-    # Create a book to delete
-    create_response = client.post(
-        "/api/books",
-        data=json.dumps(test_book_data),
-        content_type="application/json"
-    )
-    assert create_response.status_code == 201
-    book_id = create_response.get_json()["book_id"]
-
-    options_response = client.options(f"/api/books/{book_id}")
-    # This should include "DELETE"
-    print(options_response.headers.get("Allow"))
-
+@pytest.mark.parametrize("num_books", [1, 10, 20])
+def test_delete_book(client, book_factory, num_books):
+    books = book_factory.create_batch(num_books)
+    book_to_delete = choice(books)
     # Send a DELETE request to remove the book
-    delete_response = client.delete(f"/api/books/{book_id}")
-    print(delete_response.get_json())
+    delete_response = client.delete(f"/api/books/{book_to_delete.id}")
     assert delete_response.status_code == 200
-
     # Verify that the book no longer exists
-    get_response = client.get(f"/api/books/{book_id}")
-    assert get_response.status_code == 404
+    assert db.session.execute(
+        select(func.count()).select_from(Book)).scalar() == num_books - 1
+    assert db.session.execute(select(func.count()).select_from(
+        Book).where(Book.id == book_to_delete.id)).scalar() == 0
 
 
-def test_search_books_by_title(client, test_book_data):
-    # Create a book to search for
-    create_response = client.post(
-        "/api/books",
-        data=json.dumps(test_book_data),
-        content_type="application/json"
-    )
-    assert create_response.status_code == 201
-
+# TODO: add test for multiple search results
+@pytest.mark.parametrize("num_books", [1, 10, 20])
+def test_search_books_by_title_single_result(client, book_factory, num_books):
+    books = book_factory.create_batch(num_books)
     # Search by title
-    search_response = client.get("/api/books/search?title=Test%20Book")
+    searched_book = choice(books)
+    search_response = client.get(
+        f"/api/books/search?title={quote(searched_book.title)}")
     assert search_response.status_code == 200
-
     # Verify the search results
     data = search_response.get_json()
-    assert isinstance(data, list)
-    assert len(data) > 0
-    assert any(book["title"] == test_book_data["title"] for book in data)
+    if 'books' not in data:
+        assert False
+    response_books = data['books']
+    assert isinstance(response_books, list)
+    assert len(response_books) > 0
+    assert all(book["title"] == searched_book.title for book in response_books)
 
 
-def test_search_books_by_isbn(client, test_book_data):
-    # Create a book to search for
-    create_response = client.post(
-        "/api/books",
-        data=json.dumps(test_book_data),
-        content_type="application/json"
-    )
-    assert create_response.status_code == 201
-
-    # Search by ISBN-10
-    isbn_10 = test_book_data["isbn_10"]
-    search_response = client.get(f"/api/books/search?isbn={isbn_10}")
+# TODO: add test for multiple search results
+@pytest.mark.parametrize("num_books", [1, 10, 20])
+def test_search_books_by_isbn_single_result(client, book_factory, num_books):
+    books = book_factory.create_batch(num_books)
+    # Search by title
+    searched_book = choice(books)
+    search_response = client.get(
+        f"/api/books/search?isbn={quote(searched_book.isbn_13)}")
     assert search_response.status_code == 200
-
     # Verify the search results
     data = search_response.get_json()
-    assert isinstance(data, list)
-    assert len(data) > 0
-    assert any(book["isbn_10"] == isbn_10 for book in data)
+    if 'books' not in data:
+        assert False
+    response_books = data['books']
+    assert isinstance(response_books, list)
+    assert len(response_books) > 0
+    assert all(
+        (book["isbn_10"] == searched_book.isbn_10
+            and book["isbn_13"] == searched_book.isbn_13
+         ) for book in response_books)
 
 
-def test_search_books_no_results(client):
+@pytest.mark.parametrize("num_books", [1, 20])
+def test_search_books_no_results(client, book_factory, num_books):
+    book_factory.create_batch(num_books)
     # Search for a non-existing book
     search_response = client.get("/api/books/search?title=NonExistentTitle")
     assert search_response.status_code == 404
-
     # Verify the response contains an appropriate message
     data = search_response.get_json()
     assert "message" in data
     assert data["message"] == "No books found matching the search criteria"
 
 
-def test_add_genre_to_book(client, test_book_data):
-    # Create a genre and associate the book
-    test_genres_data = {"name": "Fiction"}
-    create_genre_response = client.post(
-        "/api/genres",
-        data=json.dumps(test_genres_data),
-        content_type="application/json"
-    )
-    assert create_genre_response.status_code == 201
-    genre_id = create_genre_response.get_json()["genre_id"]
-
-    # add a book to the database
-    create_book_response = client.post(
-        "/api/books",
-        data=json.dumps(test_book_data),
-        content_type="application/json"
-    )
-    book_id = create_book_response.get_json()["book_id"]
-    assert create_book_response.status_code == 201
-
-    # Add the genre to the books
-    update_book_response = client.put(
-        f"/api/books/{book_id}/genres",
-        data=json.dumps({"genre_ids": [genre_id]}),
-        content_type="application/json",
-    )
-
-    # Retrieve the updated book to verify changes
-    response = client.get(
-        f"/api/books/{create_book_response.get_json()['book_id']}")
-    assert response.status_code == 200
+@pytest.mark.parametrize("num_genres", [1, 2, 5])
+def test_add_genre_to_book(client, book_factory, genre_factory, num_genres):
+    book = book_factory.create()
+    genres = genre_factory.create_batch(num_genres)
+    # Add genres to the book
+    for genre in genres:
+        update_book_response = client.put(
+            f"/api/books/{book.id}/genres",
+            data=json.dumps({"genre_ids": [genre.id]}),
+            content_type="application/json",
+        )
+        assert update_book_response.status_code == 200
+        assert genre in book.genres
+    updated_book = db.session.execute(
+        select(Book).where(Book.id == book.id)).scalar()
+    if updated_book is None:
+        assert False
+    assert len(updated_book.genres) == num_genres
 
 
-def test_remove_genre_from_book(client, test_book_data):
-    # Create a genre and associate the book
-    test_genres_data = {"name": "Fiction"}
-    create_genre_response = client.post(
-        "/api/genres",
-        data=json.dumps(test_genres_data),
-        content_type="application/json"
-    )
-    assert create_genre_response.status_code == 201
-    genre_id = create_genre_response.get_json()["genre_id"]
-
-    # add a book to the database
-    create_book_response = client.post(
-        "/api/books",
-        data=json.dumps(test_book_data),
-        content_type="application/json"
-    )
-    book_id = create_book_response.get_json()["book_id"]
-    assert create_book_response.status_code == 201
-
-    # Add the genre to the books
-    update_book_response = client.put(
-        f"/api/books/{book_id}/genres",
-        data=json.dumps({"genre_ids": [genre_id]}),
-        content_type="application/json",
-    )
-    assert update_book_response.status_code == 200
-
+@pytest.mark.parametrize("num_genres", [1, 2, 5])
+def test_remove_genre_from_book(client, book_factory, genre_factory, num_genres):
+    book = book_factory.create()
+    genres = genre_factory.create_batch(num_genres)
+    genre_to_remove = choice(genres)
+    book.genres.extend(genres)
+    assert genre_to_remove in book.genres
     # Remove the genre from the book
     remove_genre_response = client.delete(
-        f"/api/books/{book_id}/genres/{genre_id}",
+        f"/api/books/{book.id}/genres/{genre_to_remove.id}",
         content_type="application/json",
     )
     assert remove_genre_response.status_code == 200
-    # Retrieve the updated book to verify changes
-    response = client.get(f"/api/books/{book_id}")
-    assert response.status_code == 200
+    assert genre_to_remove not in book.genres
+    assert len(book.genres) == num_genres - 1
 
 
-def test_add_series_to_book(client, test_book_data):
-    # Create a series and associate the book
-    test_series_data = {"name": "Test Series"}
-    create_series_response = client.post(
-        "/api/series",
-        data=json.dumps(test_series_data),
-        content_type="application/json"
-    )
-    assert create_series_response.status_code == 201
-    series_id = create_series_response.get_json()["series_id"]
-
-    # add a book to the database
-    create_book_response = client.post(
-        "/api/books",
-        data=json.dumps(test_book_data),
-        content_type="application/json"
-    )
-    book_id = create_book_response.get_json()["book_id"]
-    assert create_book_response.status_code == 201
-
-    # Add the series to the books
-    update_book_response = client.put(
-        f"/api/books/{book_id}/series",
-        data=json.dumps({"series_id": [series_id]}),
-        content_type="application/json",
-    )
-    print(update_book_response.get_json())
-    assert update_book_response.status_code == 200
-
-    # Retrieve the updated book to verify changes
-    response = client.get(f"/api/books/{book_id}")
-    assert response.status_code == 200
+@pytest.mark.parametrize("num_series", [1, 2, 5])
+def test_add_series_to_book(client, book_factory, series_factory, num_series):
+    series = series_factory.create_batch(num_series)
+    book = book_factory.create()
+    book.series = []
+    for s in series:
+        # Add the series to the book
+        update_book_response = client.put(
+            f"/api/books/{book.id}/series",
+            data=json.dumps({"series_id": [s.id]}),
+            content_type="application/json",
+        )
+        assert update_book_response.status_code == 200
+        assert s in book.series
+    assert len(book.series) == num_series
 
 
-def test_remove_series_from_book(client, test_book_data):
-    # Create a series and associate the book
-    test_series_data = {"name": "Test Series"}
-    create_series_response = client.post(
-        "/api/series",
-        data=json.dumps(test_series_data),
-        content_type="application/json"
-    )
-    assert create_series_response.status_code == 201
-    series_id = create_series_response.get_json()["series_id"]
-
-    # add a book to the database
-    create_book_response = client.post(
-        "/api/books",
-        data=json.dumps(test_book_data),
-        content_type="application/json"
-    )
-    book_id = create_book_response.get_json()["book_id"]
-    assert create_book_response.status_code == 201
-
-    # Add the series to the books
-    update_book_response = client.put(
-        f"/api/books/{book_id}/series",
-        data=json.dumps({"series_id": [series_id]}),
-        content_type="application/json",
-    )
-    assert update_book_response.status_code == 200
-
+@pytest.mark.parametrize("num_series", [1, 2, 5])
+def test_remove_series_from_book(client, book_factory, series_factory, num_series):
+    book = book_factory.create()
+    series = series_factory.create_batch(num_series)
+    series_to_remove = choice(series)
+    book.series.extend(series)
+    assert len(book.series) == num_series
+    assert series_to_remove in book.series
     # Remove the series from the book
     remove_series_response = client.delete(
-        f"/api/books/{book_id}/series/{series_id}",
+        f"/api/books/{book.id}/series/{series_to_remove.id}",
         content_type="application/json",
     )
     assert remove_series_response.status_code == 200
-    # Retrieve the updated book to verify changes
-    response = client.get(f"/api/books/{book_id}")
-    assert response.status_code == 200
+    assert series_to_remove not in book.series
+    assert len(book.series) == num_series - 1

@@ -19,7 +19,6 @@ def create_book():
             publish_date=datetime.strptime(
                 data.get("publish_date"), "%Y-%m-%d").date(),
             description=data.get("description"),
-            author_id=data.get("author_id"),
             cover_url=data.get("cover_url"),
             current_price=data.get("current_price"),
             previous_price=data.get("previous_price"),
@@ -52,30 +51,12 @@ def update_book(book_id):
         return jsonify({"error": "No data provided"}), 400
     try:
         # Update fields based on incoming data
-        book.title = data.get("title", book.title)
-        book.isbn_10 = data.get("isbn_10", book.isbn_10)
-        book.isbn_13 = data.get("isbn_13", book.isbn_13)
-        book.publish_date = data.get("publish_date", book.publish_date)
-        book.description = data.get("description", book.description)
-        book.author_id = data.get("author_id", book.author_id)
-        book.cover_url = data.get("cover_url", book.cover_url)
-        book.current_price = data.get("current_price", book.current_price)
-        book.previous_price = data.get("previous_price", book.previous_price)
-        book.physical_format = data.get(
-            "physical_format", book.physical_format)
-        book.number_of_pages = data.get(
-            "number_of_pages", book.number_of_pages)
-        book.editorial = data.get("editorial", book.editorial)
-        book.alejandria_isbn = data.get(
-            "alejandria_isbn", book.alejandria_isbn)
-        book.publisher_id = data.get("publisher_id", book.publisher_id)
-        book.physical_dimensions = data.get(
-            "physical_dimensions", book.physical_dimensions
-        )
-        book.weight = data.get("weight", book.weight)
-        book.publish_place = data.get("publish_place", book.publish_place)
-        book.edition_name = data.get("edition_name", book.edition_name)
-        book.subtitle = data.get("subtitle", book.subtitle)
+        for key, value in book.to_dict().items():
+            if "date" in key:
+                setattr(book, key, datetime.strptime(
+                    data.get(key, value), "%Y-%m-%d").date())
+                continue
+            setattr(book, key, data.get(key, value))
 
         db.session.commit()
         return jsonify({"message": "Book updated successfully"}), 200
@@ -90,64 +71,14 @@ def get_books():
     # TODO: implement query parameters for page, limit, author, genre, language, publisher, series, search, sort
     # TODO: implement pagination
     books = db.session.execute(db.select(Book)).scalars()
-    return jsonify(
-        [
-            {
-                "id": book.id,
-                "title": book.title,
-                "isbn_10": book.isbn_10,
-                "isbn_13": book.isbn_13,
-                "publish_date": book.publish_date,
-                "description": book.description,
-                "author_id": book.author_id,
-                "cover_url": book.cover_url,
-                "current_price": book.current_price,
-                "previous_price": book.previous_price,
-                "physical_format": book.physical_format,
-                "number_of_pages": book.number_of_pages,
-                "editorial": book.editorial,
-                "alejandria_isbn": book.alejandria_isbn,
-                "publisher_id": book.publisher_id,
-                "physical_dimensions": book.physical_dimensions,
-                "weight": book.weight,
-                "publish_place": book.publish_place,
-                "edition_name": book.edition_name,
-                "subtitle": book.subtitle,
-            }
-            for book in books
-        ]
-    )
+    return jsonify([book.to_dict() for book in books])
 
 
 @books.route("/<int:book_id>", methods=["GET"])
 def get_book(book_id):
     """Retrieve a single book by its ID"""
     book = db.get_or_404(Book, book_id)
-    return jsonify(
-        {
-            "id": book.id,
-            "title": book.title,
-            "isbn_10": book.isbn_10,
-            "isbn_13": book.isbn_13,
-            "publish_date": book.publish_date,
-            "description": book.description,
-            "author_id": book.author_id,
-            "cover_url": book.cover_url,
-            "current_price": book.current_price,
-            "previous_price": book.previous_price,
-            "physical_format": book.physical_format,
-            "number_of_pages": book.number_of_pages,
-            "editorial": book.editorial,
-            "alejandria_isbn": book.alejandria_isbn,
-            "publisher_id": book.publisher_id,
-            "physical_dimensions": book.physical_dimensions,
-            "weight": book.weight,
-            "publish_place": book.publish_place,
-            "edition_name": book.edition_name,
-            "subtitle": book.subtitle,
-            "authors": [{"id": author.id, "name": author.name} for author in book.authors],
-        }
-    )
+    return jsonify(book.to_dict()), 200
 
 
 @books.route("/<int:book_id>", methods=["DELETE"])
@@ -169,6 +100,9 @@ def search_books():
     title = request.args.get('title', type=str)
     isbn = request.args.get('isbn', type=str)
     author_name = request.args.get('author', type=str)
+    page = request.args.get('page', type=int, default=1)
+    keyword = request.args.get('keyword', type=str)
+    limit = request.args.get('limit', type=int, default=10)
     query = db.session.query(Book)
     if title:
         query = query.filter(Book.title.ilike(f'%{title}%'))
@@ -177,35 +111,18 @@ def search_books():
     if author_name:
         query = query.join(Author).filter(
             Author.name.ilike(f'%{author_name}%'))
-    books = query.all()
+    if keyword:
+        query = query.filter(
+            (Book.title.ilike(f'%{keyword}%')) | (Book.description.ilike(f'%{keyword}%')) | Author.name.ilike(f'%{keyword}%'))
+    num_pages = query.count() // limit
+    books = query.offset((page - 1) * limit).limit(limit).all()
     # serialize the results
     results = []
     for book in books:
-        results.append({
-            "id": book.id,
-            "title": book.title,
-            "isbn_10": book.isbn_10,
-            "isbn_13": book.isbn_13,
-            "publish_date": book.publish_date,
-            "description": book.description,
-            "author_id": book.author_id,
-            "cover_url": book.cover_url,
-            "current_price": book.current_price,
-            "previous_price": book.previous_price,
-            "physical_format": book.physical_format,
-            "number_of_pages": book.number_of_pages,
-            "editorial": book.editorial,
-            "alejandria_isbn": book.alejandria_isbn,
-            "publisher_id": book.publisher_id,
-            "physical_dimensions": book.physical_dimensions,
-            "weight": book.weight,
-            "publish_place": book.publish_place,
-            "edition_name": book.edition_name,
-            "subtitle": book.subtitle,
-        })
+        results.append(book.to_dict())
     if not books:
         return jsonify({"message": "No books found matching the search criteria"}), 404
-    return jsonify(results)
+    return jsonify({"books": results, "pages": num_pages, "current_page": page}), 200
 
 
 @books.route('/<int:book_id>/authors', methods=['PUT'])
@@ -273,7 +190,6 @@ def add_genres_to_book(book_id):
         return jsonify({"error": str(e)}), 400
 
 
-
 @books.route('/<int:book_id>/genres/<int:genre_id>', methods=['DELETE'])
 def remove_genre_from_book(book_id, genre_id):
     """Remove a genre from a book"""
@@ -285,7 +201,7 @@ def remove_genre_from_book(book_id, genre_id):
         return jsonify({"message": "Genre removed successfully"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 400  
+        return jsonify({"error": str(e)}), 400
 
 
 @books.route('/<int:book_id>/series', methods=['PUT'])

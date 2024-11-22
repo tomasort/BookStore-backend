@@ -69,9 +69,6 @@ class Book(db.Model):
     )
     publish_date: so.Mapped[Optional[sa.Date]] = so.mapped_column(sa.Date)
     description: so.Mapped[Optional[str]] = so.mapped_column(sa.Text)
-    author_id: so.Mapped[Optional[int]] = so.mapped_column(
-        sa.Integer, sa.ForeignKey("author.id")
-    )
     cover_url: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     current_price: so.Mapped[Optional[float]] = so.mapped_column(sa.Float)
     previous_price: so.Mapped[Optional[float]] = so.mapped_column(sa.Float)
@@ -109,6 +106,15 @@ class Book(db.Model):
 
     def __repr__(self) -> str:
         return f"<Book(id={self.id}, title='{self.title}', publish_date='{self.publish_date}')>"
+
+    def to_dict(self):
+        dict_ = {}
+        for column in self.__table__.c:
+            if column.name == "publish_date":
+                dict_[column.name] = str(getattr(self, column.name))
+            else:
+                dict_[column.name] = getattr(self, column.name)
+        return dict_
 
 
 class Genre(db.Model):

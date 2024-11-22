@@ -1,5 +1,14 @@
 import pytest
 from app import create_app, db
+from tests.factories import BookFactory, AuthorFactory, GenreFactory, PublisherFactory, LanguageFactory, SeriesFactory
+from pytest_factoryboy import register
+
+register(BookFactory)
+register(AuthorFactory)
+register(GenreFactory)
+register(PublisherFactory)
+register(LanguageFactory)
+register(SeriesFactory)
 
 
 @pytest.fixture(scope="session")
@@ -34,30 +43,8 @@ def runner(app):
 def cleanup_db(app):
     with app.app_context():
         yield
-        db.session.remove()
         db.drop_all()
         db.create_all()
-
-# @pytest.fixture()
-# def db_session(app):
-#     """
-#     Creates a new database session for a test.
-#     Rolls back any changes to the database after the test completes.
-#     """
-#     # Start a transaction
-#     with app.app_context():
-#         connection = db.engine.connect()
-#         transaction = connection.begin()
-
-#         # Bind the session to the connection
-#         db.session.bind = connection
-
-#         yield db.session
-
-#         # Rollback the transaction after the test
-#         transaction.rollback()
-#         connection.close()
-#         db.session.remove()
 
 
 @pytest.fixture()
