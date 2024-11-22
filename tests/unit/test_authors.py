@@ -1,229 +1,163 @@
 import json
+from random import choice, sample, randint
+from app import db
+from app.api.models import Author
+from sqlalchemy import select, func
+import pytest
 
 
-def test_create_author(client, test_authors_data):
-    # Test creating a new author
+def test_create_author(client, author_factory):
+    author = author_factory.build()
     response = client.post(
         "/api/authors",
-        data=json.dumps(test_authors_data[0]),
+        data=json.dumps(author.to_dict()),
         content_type="application/json"
     )
-    print(response.get_json())
     assert response.status_code == 201
     data = response.get_json()
-    assert "author_id" in data
+    if "author_id" not in data:
+        assert False
+    book_in_db = db.session.execute(select(Author).where(
+        Author.id == data["author_id"])).scalar()
+    if book_in_db is None:
+        assert False
+    assert data["author_id"] == book_in_db.id
     assert data["message"] == "Author created successfully"
 
 
-def test_add_authors_to_book(client, test_book_data, test_authors_data):
-    # Create a book to which authors will be added
-    create_book_response = client.post(
-        "/api/books",
-        data=json.dumps(test_book_data),
-        content_type="application/json"
-    )
-    assert create_book_response.status_code == 201
-    book_id = create_book_response.get_json()["book_id"]
-    # Create two authors
-    author_ids = []
-    for author in test_authors_data:
-        create_author_response = client.post(
-            "/api/authors",
-            data=json.dumps(author),
-            content_type="application/json"
-        )
-        author_ids.append(create_author_response.get_json()["author_id"])
-        assert create_author_response.status_code == 201
+@pytest.mark.parametrize("num_authors", [1, 3, 10, 20])
+def test_add_authors_to_book(client, book_factory, author_factory, num_authors):
+    book = book_factory.create()
+    authors = author_factory.create_batch(num_authors)
+    for author in authors:
+        assert author not in book.authors
     # Send a PUT request to add authors to the book
     add_authors_response = client.put(
-        f"/api/books/{book_id}/authors",
-        data=json.dumps({"author_ids": author_ids}),
+        f"/api/books/{book.id}/authors",
+        data=json.dumps({"author_ids": [author.id for author in authors]}),
         content_type="application/json"
     )
     # Verify that the response is successful
-    print(add_authors_response.get_json())
     assert add_authors_response.status_code == 200
     data = add_authors_response.get_json()
     assert data["message"] == "Authors added successfully"
-
     # Verify that the authors were correctly added to the book
-    get_book_response = client.get(f"/api/books/{book_id}")
-    assert get_book_response.status_code == 200
-    book_data = get_book_response.get_json()
-
-    # Check that the authors were added
-    new_author_ids = [author["id"] for author in book_data.get("authors", [])]
-    for author_id in author_ids:
-        assert author_id in new_author_ids
+    for author in authors:
+        assert author in book.authors
 
 
-def test_remove_authors_from_book(client, test_book_data, test_authors_data):
-    # Create a book to which authors will be added
-    create_book_response = client.post(
-        "/api/books",
-        data=json.dumps(test_book_data),
-        content_type="application/json"
-    )
-    assert create_book_response.status_code == 201
-    book_id = create_book_response.get_json()["book_id"]
-    # Create two authors
-    author_ids = []
-    for author in test_authors_data:
-        create_author_response = client.post(
-            "/api/authors",
-            data=json.dumps(author),
-            content_type="application/json"
-        )
-        author_ids.append(create_author_response.get_json()["author_id"])
-        assert create_author_response.status_code == 201
-    # Add the authors to the book
-    add_authors_response = client.put(
-        f"/api/books/{book_id}/authors",
-        data=json.dumps({"author_ids": author_ids}),
-        content_type="application/json"
-    )
-    assert add_authors_response.status_code == 200
+@pytest.mark.parametrize("num_authors", [1, 3, 10])
+def test_remove_authors_from_book(client, book_factory, author_factory, num_authors):
+    book = book_factory.create()
+    authors = author_factory.create_batch(num_authors)
+    assert len(book.authors) == 0
+    book.authors.extend(authors)
+    assert len(book.authors) == num_authors
+    author_to_delete = choice(authors)
     # Send a DELETE request to remove the authors from the book
     remove_authors_response = client.delete(
-        f"/api/books/{book_id}/authors/{author_ids[0]}",
+        f"/api/books/{book.id}/authors/{author_to_delete.id}",
         content_type="application/json"
     )
     # Verify that the response is successful
     assert remove_authors_response.status_code == 200
     data = remove_authors_response.get_json()
     assert data["message"] == "Author removed successfully"
-
     # Verify that the authors were correctly removed from the book
-    get_book_response = client.get(f"/api/books/{book_id}")
-    assert get_book_response.status_code == 200
-    book_data = get_book_response.get_json()
-    assert len(book_data.get("authors", [])) == len(author_ids) - 1
+    assert author_to_delete not in book.authors
+    assert len(book.authors) == num_authors - 1
 
 
-def test_get_authors(client, test_authors_data):
-    # Add authors to the database
-    author_ids = []
-    for author in test_authors_data:
-        response = client.post(
-            "/api/authors",
-            data=json.dumps(author),
-            content_type="application/json"
-        )
-        assert response.status_code == 201
-        author_ids.append(response.get_json()["author_id"])
+@pytest.mark.parametrize("num_authors", [1, 3, 10])
+def test_get_authors(client, author_factory, num_authors):
+    authors = author_factory.create_batch(num_authors)
     # Send a GET request to retrieve all authors
     response = client.get("/api/authors")
     # Assert that the request was successful
     assert response.status_code == 200
     data = response.get_json()
     assert isinstance(data, list)  # Should return a list of authors
-    assert len(data) > 0  # The list should not be empty
-    assert data[0]["name"] == test_authors_data[0]["name"]
+    assert len(data) == num_authors  # The list should not be empty
     # check that the author ids are in the response
-    for author in data:
-        assert all([author['id'] in author_ids for author in data])
+    ids = [a.id for a in authors]
+    assert all([author['id'] in ids for author in data])
 
 
-def test_get_author(client, test_authors_data):
-    # Add an author to the database
-    response = client.post(
-        "/api/authors",
-        data=json.dumps(test_authors_data[0]),
-        content_type="application/json"
-    )
-    assert response.status_code == 201
-    author_id = response.get_json()["author_id"]
+@pytest.mark.parametrize("num_authors", [1, 3, 10])
+def test_get_author(client, author_factory, num_authors):
+    authors = author_factory.create_batch(num_authors)
+    author_to_get = choice(authors)
     # Send a GET request to retrieve the author
-    response = client.get(f"/api/authors/{author_id}")
+    response = client.get(f"/api/authors/{author_to_get.id}")
     # Assert that the request was successful
     assert response.status_code == 200
     data = response.get_json()
-    assert data["name"] == test_authors_data[0]["name"]
+    assert data["name"] == author_to_get.name
     # Check that the author id is in the response
-    assert data["id"] == author_id
+    assert data["id"] == author_to_get.id
 
 
-def test_update_author(client, test_authors_data):
-    # Add an author to the database
-    response = client.post(
-        "/api/authors",
-        data=json.dumps(test_authors_data[0]),
-        content_type="application/json"
-    )
-    assert response.status_code == 201
-    author_id = response.get_json()["author_id"]
+@pytest.mark.parametrize("num_authors", [1, 3, 10])
+def test_update_author(client, author_factory, num_authors):
+    authors = author_factory.create_batch(num_authors)
+    author_to_update = choice(authors)
     # Send a PUT request to update the author
     new_data = {
         "name": "New Name",
         "birth_date": "1990-01-01",
-        "death_date": "2020-01-01",
         "biography": "New Biography"
     }
     response = client.put(
-        f"/api/authors/{author_id}",
+        f"/api/authors/{author_to_update.id}",
         data=json.dumps(new_data),
         content_type="application/json"
     )
     # Assert that the request was successful
     assert response.status_code == 200
-    # Check that the author was updated correctly
-    response = client.get(f"/api/authors/{author_id}")
-    data = response.get_json()
-    assert data["name"] == new_data["name"]
-    assert data["biography"] == new_data["biography"]
+    assert author_to_update.name == new_data["name"]
+    assert author_to_update.biography == new_data["biography"]
 
 
-def test_delete_author(client, test_authors_data):
-    # Add an author to the database
-    response = client.post(
-        "/api/authors",
-        data=json.dumps(test_authors_data[0]),
-        content_type="application/json"
-    )
-    assert response.status_code == 201
-    author_id = response.get_json()["author_id"]
+@pytest.mark.parametrize("num_authors", [1, 10, 20])
+def test_delete_author(client, author_factory, num_authors):
+    authors = author_factory.create_batch(num_authors)
+    author_to_delete = choice(authors)
     # Send a DELETE request to delete the author
-    response = client.delete(f"/api/authors/{author_id}")
+    response = client.delete(f"/api/authors/{author_to_delete.id}")
     # Assert that the request was successful
     assert response.status_code == 200
     # Check that the author was deleted
-    response = client.get(f"/api/authors/{author_id}")
-    assert response.status_code == 404
-    data = response.get_json()
-    assert data["error"] == "Author not found"
+    assert db.session.execute(select(Author).where(
+        Author.id == author_to_delete.id)).scalar() is None
+    assert db.session.execute(
+        select(func.count(Author.id))).scalar() == num_authors - 1
 
 
-def test_get_author_books(client, test_book_data, test_authors_data):
-    # Create a book to which authors will be added
-    create_book_response = client.post(
-        "/api/books",
-        data=json.dumps(test_book_data),
-        content_type="application/json"
-    )
-    assert create_book_response.status_code == 201
-    book_id = create_book_response.get_json()["book_id"]
-    # Create an author
-    create_author_response = client.post(
-        "/api/authors",
-        data=json.dumps(test_authors_data[0]),
-        content_type="application/json"
-    )
-    assert create_author_response.status_code == 201
-    author_id = create_author_response.get_json()["author_id"]
-    # Add the author to the book
-    add_authors_response = client.put(
-        f"/api/books/{book_id}/authors",
-        data=json.dumps({"author_ids": [author_id]}),
-        content_type="application/json"
-    )
-    assert add_authors_response.status_code == 200
+@pytest.mark.parametrize("num_authors,author_books,total_books", [
+    (1, 4, 20),
+    (2, 3, 6),  # Adjusted to make the test realistic
+    (5, 4, 20)  # Adjusted parameters for clarity
+])
+def test_get_author_books(client, author_factory, book_factory, num_authors, author_books, total_books):
+    authors = author_factory.create_batch(num_authors)
+    books = book_factory.create_batch(total_books)
+    # Choose an author to assign a specific number of books
+    author_with_books = choice(authors)
+    # Assign `author_books` to `author_with_books`
+    books_to_assign = sample(books, author_books)
+    author_with_books.books.extend(books_to_assign)
+    db.session.commit()
+    # Randomly assign remaining books to other authors
+    for author in authors:
+        if author != author_with_books:
+            author.books.extend(sample(books, randint(1, len(books) - 1)))
+            db.session.commit()
     # Send a GET request to retrieve the author's books
-    response = client.get(f"/api/authors/{author_id}/books")
+    response = client.get(f"/api/authors/{author_with_books.id}/books")
     # Assert that the request was successful
     assert response.status_code == 200
     data = response.get_json()
+    # Validate that the data returned is correct
     assert isinstance(data, list)  # Should return a list of books
-    assert len(data) > 0  # The list should not be empty
-    assert data[0]["title"] == test_book_data["title"]
-    # Check that the book id is in the response
-    assert data[0]["id"] == book_id
+    # The list should have the correct number of books
+    assert len(data) == len(books_to_assign)

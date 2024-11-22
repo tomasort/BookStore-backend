@@ -90,6 +90,7 @@ def test_delete_book(client, book_factory, num_books):
 
 
 # TODO: add test for multiple search results
+# TODO: add test for multiple pages
 @pytest.mark.parametrize("num_books", [1, 10, 20])
 def test_search_books_by_title_single_result(client, book_factory, num_books):
     books = book_factory.create_batch(num_books)
@@ -108,7 +109,6 @@ def test_search_books_by_title_single_result(client, book_factory, num_books):
     assert all(book["title"] == searched_book.title for book in response_books)
 
 
-# TODO: add test for multiple search results
 @pytest.mark.parametrize("num_books", [1, 10, 20])
 def test_search_books_by_isbn_single_result(client, book_factory, num_books):
     books = book_factory.create_batch(num_books)
@@ -147,13 +147,13 @@ def test_add_genre_to_book(client, book_factory, genre_factory, num_genres):
     book = book_factory.create()
     genres = genre_factory.create_batch(num_genres)
     # Add genres to the book
+    update_book_response = client.put(
+        f"/api/books/{book.id}/genres",
+        data=json.dumps({"genre_ids": [genre.id for genre in genres]}),
+        content_type="application/json",
+    )
+    assert update_book_response.status_code == 200
     for genre in genres:
-        update_book_response = client.put(
-            f"/api/books/{book.id}/genres",
-            data=json.dumps({"genre_ids": [genre.id]}),
-            content_type="application/json",
-        )
-        assert update_book_response.status_code == 200
         assert genre in book.genres
     updated_book = db.session.execute(
         select(Book).where(Book.id == book.id)).scalar()

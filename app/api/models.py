@@ -42,7 +42,20 @@ book_authors = sa.Table(
 )
 
 
-class Author(db.Model):
+class BaseModel(db.Model):
+    __abstract__ = True
+
+    def to_dict(self):
+        dict_ = {}
+        for column in self.__table__.c:
+            if "date" in column.name:
+                dict_[column.name] = str(getattr(self, column.name))
+            else:
+                dict_[column.name] = getattr(self, column.name)
+        return dict_
+
+
+class Author(BaseModel):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     name: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
     birth_date: so.Mapped[Optional[sa.Date]] = so.mapped_column(sa.Date)
@@ -58,7 +71,7 @@ class Author(db.Model):
         return f"<Author(id={self.id}, name='{self.name}', birth_date='{self.birth_date}')>"
 
 
-class Book(db.Model):
+class Book(BaseModel):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     title: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
     isbn_10: so.Mapped[Optional[str]] = so.mapped_column(
@@ -107,17 +120,8 @@ class Book(db.Model):
     def __repr__(self) -> str:
         return f"<Book(id={self.id}, title='{self.title}', publish_date='{self.publish_date}')>"
 
-    def to_dict(self):
-        dict_ = {}
-        for column in self.__table__.c:
-            if column.name == "publish_date":
-                dict_[column.name] = str(getattr(self, column.name))
-            else:
-                dict_[column.name] = getattr(self, column.name)
-        return dict_
 
-
-class Genre(db.Model):
+class Genre(BaseModel):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     name: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
 
@@ -130,7 +134,7 @@ class Genre(db.Model):
         return f"<Genre(id={self.id}, name='{self.name}')>"
 
 
-class Publisher(db.Model):
+class Publisher(BaseModel):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     name: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
 
@@ -143,7 +147,7 @@ class Publisher(db.Model):
         return f"<Publisher(id={self.id}, name='{self.name}')>"
 
 
-class Language(db.Model):
+class Language(BaseModel):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     name: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
 
@@ -156,7 +160,7 @@ class Language(db.Model):
         return f"<Language(id={self.id}, name='{self.name}')>"
 
 
-class Series(db.Model):
+class Series(BaseModel):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     name: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
 
