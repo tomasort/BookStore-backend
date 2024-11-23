@@ -1,10 +1,13 @@
 # Script for populating the database with the data from the csv
+from sqlalchemy import select
+from datetime import datetime
 import click
 import pandas as pd
 from flask.cli import with_appcontext
 from app import db
 from app.api.models import Book, Author, Genre, Series
 from app.api import api
+from pprint import pprint
 
 
 @api.cli.command(name='populate')
@@ -18,4 +21,5 @@ def populate(path):
     except Exception as e:
         print(f"Error reading the file: {str(e)}")
         return
-    print(books_df.head())
+    for row in books_df.iterrows():
+        pprint(row)

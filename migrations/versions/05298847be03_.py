@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: e4df60a20c7b
+Revision ID: 05298847be03
 Revises: 
-Create Date: 2024-11-14 16:09:54.494753
+Create Date: 2024-11-23 05:40:17.788877
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'e4df60a20c7b'
+revision = '05298847be03'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -22,6 +22,7 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(), nullable=False),
     sa.Column('birth_date', sa.Date(), nullable=True),
+    sa.Column('death_date', sa.Date(), nullable=True),
     sa.Column('biography', sa.Text(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
@@ -45,17 +46,6 @@ def upgrade():
     sa.Column('name', sa.String(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_table('user',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('username', sa.String(length=64), nullable=False),
-    sa.Column('email', sa.String(length=120), nullable=False),
-    sa.Column('password_hash', sa.String(length=256), nullable=True),
-    sa.PrimaryKeyConstraint('id')
-    )
-    with op.batch_alter_table('user', schema=None) as batch_op:
-        batch_op.create_index(batch_op.f('ix_user_email'), ['email'], unique=True)
-        batch_op.create_index(batch_op.f('ix_user_username'), ['username'], unique=True)
-
     op.create_table('book',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('title', sa.String(), nullable=False),
@@ -63,7 +53,6 @@ def upgrade():
     sa.Column('isbn_13', sa.String(), nullable=True),
     sa.Column('publish_date', sa.Date(), nullable=True),
     sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('author_id', sa.Integer(), nullable=True),
     sa.Column('cover_url', sa.String(), nullable=True),
     sa.Column('current_price', sa.Float(), nullable=True),
     sa.Column('previous_price', sa.Float(), nullable=True),
@@ -77,7 +66,6 @@ def upgrade():
     sa.Column('publish_place', sa.String(), nullable=True),
     sa.Column('edition_name', sa.String(), nullable=True),
     sa.Column('subtitle', sa.String(), nullable=True),
-    sa.ForeignKeyConstraint(['author_id'], ['author.id'], ),
     sa.ForeignKeyConstraint(['publisher_id'], ['publisher.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -86,6 +74,13 @@ def upgrade():
         batch_op.create_index(batch_op.f('ix_book_isbn_10'), ['isbn_10'], unique=True)
         batch_op.create_index(batch_op.f('ix_book_isbn_13'), ['isbn_13'], unique=True)
 
+    op.create_table('book_authors',
+    sa.Column('book_id', sa.Integer(), nullable=False),
+    sa.Column('author_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['author_id'], ['author.id'], ),
+    sa.ForeignKeyConstraint(['book_id'], ['book.id'], ),
+    sa.PrimaryKeyConstraint('book_id', 'author_id')
+    )
     op.create_table('book_genres',
     sa.Column('book_id', sa.Integer(), nullable=False),
     sa.Column('genre_id', sa.Integer(), nullable=False),
@@ -115,17 +110,13 @@ def downgrade():
     op.drop_table('book_series')
     op.drop_table('book_languages')
     op.drop_table('book_genres')
+    op.drop_table('book_authors')
     with op.batch_alter_table('book', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_book_isbn_13'))
         batch_op.drop_index(batch_op.f('ix_book_isbn_10'))
         batch_op.drop_index(batch_op.f('ix_book_alejandria_isbn'))
 
     op.drop_table('book')
-    with op.batch_alter_table('user', schema=None) as batch_op:
-        batch_op.drop_index(batch_op.f('ix_user_username'))
-        batch_op.drop_index(batch_op.f('ix_user_email'))
-
-    op.drop_table('user')
     op.drop_table('series')
     op.drop_table('publisher')
     op.drop_table('language')
