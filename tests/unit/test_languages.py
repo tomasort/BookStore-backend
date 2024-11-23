@@ -4,7 +4,6 @@ from random import choice
 import pytest
 from app.api.models import Language
 from app import db
-# TODO: refactor tests to use factories!
 
 
 def test_create_language(client, language_factory):

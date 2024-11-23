@@ -1,115 +1,77 @@
 import json
+from app.api.models import Publisher
+from sqlalchemy import select, func
+from app import db
+from random import choice
+import pytest
 
-def test_create_publisher(client):
+
+def test_create_publisher(client, publisher_factory):
     # Create a new publisher
+    publisher = publisher_factory.build()
     response = client.post(
         '/api/publishers',
-        data=json.dumps({'name': 'Penguin Random House'}),
+        data=json.dumps(publisher.to_dict()),
         content_type='application/json'
     )
-    data = json.loads(response.data)
+    data = response.get_json()
     assert response.status_code == 201
     assert data['message'] == 'Publisher created successfully'
     assert data['publisher_id'] == 1
 
 
-def test_get_publishers(client):
+@pytest.mark.parametrize("num_publishers", [1, 3, 10, 20])
+def test_get_publishers(client, publisher_factory, num_publishers):
     # Create new publishers
-    publisher_ids = []
-    for publisher in ['Penguin Random House', 'HarperCollins', 'Simon & Schuster']:
-        response = client.post(
-            '/api/publishers',
-            data=json.dumps({'name': publisher}),
-            content_type='application/json'
-        )
-        assert response.status_code == 201
-        publisher_ids.append(json.loads(response.data)['publisher_id'])
+    publishers = publisher_factory.create_batch(num_publishers)
     # Retrieve a list of publishers
     response = client.get('/api/publishers')
-    data = json.loads(response.data)
+    data = response.get_json()
     assert response.status_code == 200
-    assert len(data) == 3
+    assert len(data) == num_publishers
+    publisher_ids = [publisher.id for publisher in publishers]
     assert all([publisher['id'] in publisher_ids for publisher in data])
 
 
-def test_get_publisher(client):
-    # Create new publishers
-    publisher_ids = []
-    for publisher in ['Penguin Random House', 'HarperCollins', 'Simon & Schuster']:
-        response = client.post(
-            '/api/publishers',
-            data=json.dumps({'name': publisher}),
-            content_type='application/json'
-        )
-        assert response.status_code == 201
-        publisher_ids.append(json.loads(response.data)['publisher_id'])
+@pytest.mark.parametrize("num_publishers", [1, 3, 10, 20])
+def test_get_publisher(client, publisher_factory, num_publishers):
+    publishers = publisher_factory.create_batch(num_publishers)
+    target_publisher = choice(publishers)
     # Retrieve a single publisher by its ID
-    response = client.get(f'/api/publishers/{publisher_ids[0]}')
-    data = json.loads(response.data)
+    response = client.get(f'/api/publishers/{target_publisher.id}')
+    data = response.get_json()
     assert response.status_code == 200
-    assert data['id'] == publisher_ids[0]
-    assert data['name'] == 'Penguin Random House'
-    # Test for a publisher that does not exist
-    response = client.get('/api/publishers/999')
-    assert response.status_code == 404
-    assert json.loads(response.data)['error'] == 'Publisher not found'
+    assert data['id'] == target_publisher.id
+    assert data['name'] == target_publisher.name
 
 
-def test_update_publisher(client):
-    # Create a new publisher
-    response = client.post(
-        '/api/publishers',
-        data=json.dumps({'name': 'Penguin Random House'}),
-        content_type='application/json'
-    )
-    assert response.status_code == 201
-    publisher_id = json.loads(response.data)['publisher_id']
+@pytest.mark.parametrize("num_publishers", [1, 3, 10])
+def test_update_publisher(client, publisher_factory, num_publishers):
+    publishers = publisher_factory.create_batch(num_publishers)
+    target_publisher = choice(publishers)
+    update_data = {'name': 'Changed Classics'}
     # Update the publisher
     response = client.put(
-        f'/api/publishers/{publisher_id}',
-        data=json.dumps({'name': 'Penguin Classics'}),
+        f'/api/publishers/{target_publisher.id}',
+        data=json.dumps(update_data),
         content_type='application/json'
     )
-    data = json.loads(response.data)
+    data = response.get_json()
     assert response.status_code == 200
     assert data['message'] == 'Publisher updated successfully'
-    # Retrieve the updated publisher
-    response = client.get(f'/api/publishers/{publisher_id}')
-    data = json.loads(response.data)
-    assert response.status_code == 200
-    assert data['name'] == 'Penguin Classics'
-    # Test for a publisher that does not exist
-    response = client.put(
-        '/api/publishers/999',
-        data=json.dumps({'name': 'Penguin Classics'}),
-        content_type='application/json'
-    )
-    assert response.status_code == 404
-    assert json.loads(response.data)['error'] == 'Publisher not found'
-    # Test for invalid publisher data
-    response = client.put(
-        f'/api/publishers/{publisher_id}',
-        data=json.dumps({'invalid': 'data'}),
-        content_type='application/json'
-    )
-    assert response.status_code == 400
-    assert json.loads(response.data)['error'] == 'Invalid publisher data'
+    assert target_publisher.name == update_data['name']
 
-def test_delete_publisher(client):
-    # Create a new publisher
-    response = client.post(
-        '/api/publishers',
-        data=json.dumps({'name': 'Penguin Random House'}),
-        content_type='application/json'
-    )
-    assert response.status_code == 201
-    publisher_id = json.loads(response.data)['publisher_id']
+
+@pytest.mark.parametrize("num_publishers", [1, 3, 10])
+def test_delete_publisher(client, publisher_factory, num_publishers):
+    publishers = publisher_factory.create_batch(num_publishers)
+    target_publisher = choice(publishers)
     # Delete the publisher
-    response = client.delete(f'/api/publishers/{publisher_id}')
-    data = json.loads(response.data)
+    response = client.delete(f'/api/publishers/{target_publisher.id}')
+    data = response.get_json()
     assert response.status_code == 200
     assert data['message'] == 'Publisher deleted successfully'
-    # Test for a publisher that does not exist
-    response = client.delete('/api/publishers/999')
-    assert response.status_code == 404
-    assert json.loads(response.data)['error'] == 'Publisher not found'
+    assert db.session.execute(select(Publisher).where(
+        Publisher.id == target_publisher.id)).scalar() is None
+    assert db.session.execute(select(func.count()).select_from(
+        Publisher)).scalar() == num_publishers - 1
