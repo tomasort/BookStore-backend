@@ -16,4 +16,4 @@ api.register_blueprint(publishers)
 api.register_blueprint(series)
 api.register_blueprint(languages)
 
-from app.api import models
+from app.api import models, populate
