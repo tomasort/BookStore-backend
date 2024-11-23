@@ -87,7 +87,6 @@ class LanguageFactory(factory.alchemy.SQLAlchemyModelFactory):
         sqlalchemy_session_persistence = "commit"
 
     name = factory.Faker('language_name')
-    code = factory.Faker('language_code')
 
 
 class SeriesFactory(factory.alchemy.SQLAlchemyModelFactory):
