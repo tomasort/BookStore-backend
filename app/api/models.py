@@ -61,6 +61,10 @@ class Author(BaseModel):
     birth_date: so.Mapped[Optional[sa.Date]] = so.mapped_column(sa.Date)
     death_date: so.Mapped[Optional[sa.Date]] = so.mapped_column(sa.Date)
     biography: so.Mapped[Optional[str]] = so.mapped_column(sa.Text)
+    # Use PickleType for other_names to store a list or other Python objects
+    other_names: so.Mapped[Optional[list[str]]
+                           ] = so.mapped_column(sa.PickleType)
+    photo_url: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
 
     # Define the relationship with books
     books: so.Mapped[list["Book"]] = so.relationship(
