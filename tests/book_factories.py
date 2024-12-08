@@ -1,4 +1,5 @@
-from app.api.models import Author, Book, Publisher, Genre, Language, Series
+from app.api.models import Author, Book, Publisher, Genre, Language, Series, Provider
+import random
 import factory
 from app import db
 
@@ -96,3 +97,62 @@ class SeriesFactory(factory.alchemy.SQLAlchemyModelFactory):
         sqlalchemy_session_persistence = "commit"
 
     name = factory.Faker('sentence', nb_words=3)
+
+
+class ProviderFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta:
+        model = Provider
+        sqlalchemy_session = db.session
+        sqlalchemy_session_persistence = "commit"
+
+    alejandria_code = factory.Faker('random_int', min=1, max=1000)
+    cedula = factory.Faker('random_element', elements=[
+        'V185262398',
+        'J412245562',
+        'J406802794',
+        'V131134785',
+        'J408153173',
+        'V10338653',
+        'J406271691',
+        'V6446257',
+        'J307761296',
+        'V067305244',
+        'J001633308',
+        'J317582888',
+        'V3156101',
+    ])
+    name = factory.Faker('name')
+    url = factory.Faker('url')
+    address = factory.Faker('address')
+    phone = factory.Faker('phone_number')
+    email = factory.Faker('email')
+    contact_name = factory.Faker('name')
+    banco = factory.Faker('random_element', elements=[
+        'BANCO DE VENEZUELA',
+        'BANCO VENEZOLANO DE CREDITO',
+        'BANCO MERCANTIL',
+        'BANCO PROVINCIAL',
+        'BANCARIBE',
+        'BANCO EXTERIOR',
+        'BANESCO BANCO UNIVERSAL',
+        'BANCAMIGA BANCO UNIVERSAL',
+        'BANPLUS',
+        'BANCO NACIONAL DE CREDITO',
+    ])
+    titular_banco = factory.Faker('name')
+    rif_banco = factory.Faker('random_element', elements=[
+        'J000000000',
+        'V000000000',
+        'V13113478',
+        'J408153173',
+        'V10338653',
+        '4681359',
+        'V6446257',
+        'J-30776129-6',
+        'V67305244',
+        'J001633308',
+    ])
+    cod_cuenta = factory.Faker('random_int', min=100000000000, max=999999999999)
+    notes = factory.Faker('paragraph')
+    books = factory.LazyAttribute(lambda _: [BookFactory() for _ in range(random.randint(1, 5))])
+

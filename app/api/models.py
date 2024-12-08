@@ -62,8 +62,7 @@ class Author(BaseModel):
     death_date: so.Mapped[Optional[sa.Date]] = so.mapped_column(sa.Date)
     biography: so.Mapped[Optional[str]] = so.mapped_column(sa.Text)
     # Use PickleType for other_names to store a list or other Python objects
-    other_names: so.Mapped[Optional[list[str]]
-                           ] = so.mapped_column(sa.PickleType)
+    other_names: so.Mapped[Optional[list[str]]] = so.mapped_column(sa.PickleType)
     photo_url: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
 
     # Define the relationship with books
@@ -78,31 +77,27 @@ class Author(BaseModel):
 class Book(BaseModel):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     title: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
-    isbn_10: so.Mapped[Optional[str]] = so.mapped_column(
-        sa.String, unique=True, index=True
-    )
-    isbn_13: so.Mapped[Optional[str]] = so.mapped_column(
-        sa.String, unique=True, index=True
-    )
+    isbn_10: so.Mapped[Optional[str]] = so.mapped_column(sa.String, unique=True, index=True)
+    isbn_13: so.Mapped[Optional[str]] = so.mapped_column(sa.String, unique=True, index=True)
     publish_date: so.Mapped[Optional[sa.Date]] = so.mapped_column(sa.Date)
     description: so.Mapped[Optional[str]] = so.mapped_column(sa.Text)
     cover_url: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     current_price: so.Mapped[Optional[float]] = so.mapped_column(sa.Float)
     previous_price: so.Mapped[Optional[float]] = so.mapped_column(sa.Float)
+    cost: so.Mapped[Optional[float]] = so.mapped_column(sa.Float)
+    cost_supplier: so.Mapped[Optional[float]] = so.mapped_column(sa.Float)
     physical_format: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     number_of_pages: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer)
-    editorial: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
-    alejandria_isbn: so.Mapped[Optional[str]] = so.mapped_column(
-        sa.String, unique=True, index=True
-    )
-    publisher_id: so.Mapped[Optional[int]] = so.mapped_column(
-        sa.Integer, sa.ForeignKey("publisher.id")
-    )
+    alejandria_isbn: so.Mapped[Optional[str]] = so.mapped_column(sa.String, unique=True, index=True)
     physical_dimensions: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     weight: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     publish_place: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     edition_name: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     subtitle: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    provider_id: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer, sa.ForeignKey("provider.id"))
+    provider: so.Mapped[Optional["Provider"]] = so.relationship(
+        "Provider", back_populates="books", passive_deletes=True
+    )
 
     # Define the relationships
     authors: so.Mapped[list["Author"]] = so.relationship(
@@ -111,6 +106,7 @@ class Book(BaseModel):
     genres: so.Mapped[list["Genre"]] = so.relationship(
         "Genre", secondary=book_genres, back_populates="books", passive_deletes=True
     )
+    publisher_id: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer, sa.ForeignKey("publisher.id"))
     publisher: so.Mapped[Optional["Publisher"]] = so.relationship(
         "Publisher", back_populates="books", passive_deletes=True
     )
@@ -175,3 +171,26 @@ class Series(BaseModel):
 
     def __repr__(self) -> str:
         return f"<Series(id={self.id}, name='{self.name}')>"
+
+
+class Provider(BaseModel):
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    alejandria_code: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    cedula = so.mapped_column(sa.String, nullable=False)
+    name: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    url: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    address: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    phone: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    email: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    contact_name: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    banco: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    titular_banco: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    rif_banco: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    cod_cuenta: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    notes: so.Mapped[str] = so.mapped_column(sa.Text)
+    books: so.Mapped[list["Book"]] = so.relationship(
+        "Book", back_populates="provider"
+    )
+
+    def __repr__(self) -> str:
+        return f"<Provider(id={self.id}, name='{self.name}', url='{self.url}')>"

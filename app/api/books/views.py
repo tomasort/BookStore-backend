@@ -4,7 +4,9 @@ from flask_login import login_required
 from app import db
 from app.api.models import Book, Author, Genre, Series
 from app.api.books import books
+from app.api.schemas import BookSchema, AuthorSchema, GenreSchema, SeriesSchema
 
+book_schema = BookSchema()
 
 # TODO: use longin required for create, update, delete routes
 
@@ -12,26 +14,8 @@ from app.api.books import books
 def create_book():
     data = request.json
     try:
-        new_book: Book = Book(
-            title=data.get("title", None),
-            isbn_10=data.get("isbn_10"),
-            isbn_13=data.get("isbn_13"),
-            publish_date=datetime.strptime(
-                data.get("publish_date"), "%Y-%m-%d").date(),
-            description=data.get("description"),
-            cover_url=data.get("cover_url"),
-            current_price=data.get("current_price"),
-            previous_price=data.get("previous_price"),
-            physical_format=data.get("physical_format"),
-            number_of_pages=data.get("number_of_pages"),
-            editorial=data.get("editorial"),
-            alejandria_isbn=data.get("alejandria_isbn"),
-            physical_dimensions=data.get("physical_dimensions"),
-            weight=data.get("weight"),
-            publish_place=data.get("publish_place"),
-            edition_name=data.get("edition_name"),
-            subtitle=data.get("subtitle"),
-        )
+        book_data = book_schema.load(data)
+        new_book: Book = Book(**book_data)
         db.session.add(new_book)
         db.session.commit()
         return jsonify(

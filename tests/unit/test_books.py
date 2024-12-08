@@ -3,6 +3,7 @@ from random import choice
 import pytest
 from app import db
 from app.api.models import Book
+from app.api.schemas import BookSchema
 from sqlalchemy import select, func
 from urllib.parse import quote
 
@@ -10,13 +11,15 @@ from urllib.parse import quote
 def test_create_simple_book(client, book_factory):
     book_factory.create_batch(3)
     book = book_factory.build()
+    book_schema = BookSchema(exclude=["id"])
     # Send a POST request to create a new book
     response = client.post(
         "/api/books",
-        data=json.dumps(book.to_dict()),
+        data=json.dumps(book_schema.dump(book)),
         content_type="application/json"
     )
     # Assert that the request was successful
+    print(response.get_json())
     assert response.status_code == 201
     response_data = response.get_json()
     assert "book_id" in response_data

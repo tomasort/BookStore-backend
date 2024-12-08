@@ -1,6 +1,7 @@
 import pytest
 from app import create_app, db
-from tests.factories import BookFactory, AuthorFactory, GenreFactory, PublisherFactory, LanguageFactory, SeriesFactory
+from tests.book_factories import BookFactory, AuthorFactory, GenreFactory, ProviderFactory, PublisherFactory, LanguageFactory, SeriesFactory
+from tests.order_factories import OrderFactory, OrderItemFactory
 from pytest_factoryboy import register
 
 register(BookFactory)
@@ -9,6 +10,10 @@ register(GenreFactory)
 register(PublisherFactory)
 register(LanguageFactory)
 register(SeriesFactory)
+register(ProviderFactory)
+
+register(OrderFactory)
+register(OrderItemFactory)
 
 
 @pytest.fixture(scope="session")
@@ -45,40 +50,3 @@ def cleanup_db(app):
         yield
         db.drop_all()
         db.create_all()
-
-
-@pytest.fixture()
-def test_book_data():
-    return {
-        "title": "Test Book",
-        "isbn_10": "1234567890",
-        "isbn_13": "1234567890123",
-        "publish_date": "2024-01-01",
-        "description": "A test book description",
-        "current_price": 19.99,
-        "number_of_pages": 350,
-        "editorial": "Test Editorial",
-        "subtitle": "Test Subtitle",
-    }
-
-
-@pytest.fixture()
-def test_authors_data():
-    return [
-        {
-            "name": "Test Author 1",
-            "birth_date": "1980-01-01",
-            "biography": "A test author 1 biography",
-        },
-        {
-            "name": "Test Author 2",
-            "birth_date": "1985-01-01",
-            "death_date": "2020-01-01",
-            "biography": "A test author 2 biography",
-        },
-        {
-            "name": "Test Author 3",
-            "birth_date": "1990-01-01",
-            "biography": "A test author 3 biography",
-        },
-    ]
