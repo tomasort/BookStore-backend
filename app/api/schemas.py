@@ -7,33 +7,44 @@ class BookSchema(ma.SQLAlchemySchema):
     class Meta:
         model = Book
 
-    id = ma.auto_field(dump_only=True)  # id is auto-generated, only include it in the output
-    title = ma.auto_field()
+    # Fields for the Book model
+    id = ma.auto_field(dump_only=True)  # Read-only field
+    title = ma.auto_field(required=True)
     isbn_10 = ma.auto_field()
     isbn_13 = ma.auto_field()
     publish_date = ma.auto_field()
     description = ma.auto_field()
     cover_url = ma.auto_field()
-    current_price = ma.auto_field()
-    previous_price = ma.auto_field()
-    cost = ma.auto_field()
-    cost_supplier = ma.auto_field()
+    current_price = fields.Decimal(as_string=True)
+    previous_price = fields.Decimal(as_string=True)
+    price_alejandria = fields.Decimal(as_string=True)
+    iva = fields.Decimal(as_string=True)
+    cost = fields.Decimal(as_string=True)
+    cost_supplier = fields.Decimal(as_string=True)
+    average_cost_alejandria = fields.Decimal(as_string=True)
+    last_cost_alejandria = fields.Decimal(as_string=True)
+    stock = ma.auto_field()
+    stock_alejandria = ma.auto_field()
+    stock_consig = ma.auto_field()
+    stock_consig_alejandria = ma.auto_field()
     physical_format = ma.auto_field()
     number_of_pages = ma.auto_field()
-    alejandria_isbn = ma.auto_field()
+    bar_code_alejandria = ma.auto_field()
+    isbn_alejandria = ma.auto_field()
+    code_alejandria = ma.auto_field()
     physical_dimensions = ma.auto_field()
     weight = ma.auto_field()
-    publish_place = ma.auto_field()
+    publish_places = ma.auto_field()
     edition_name = ma.auto_field()
     subtitle = ma.auto_field()
-    provider_id = ma.auto_field()
-    provider = fields.Nested(lambda: ProviderSchema())
-    authors = fields.List(fields.Nested(lambda: AuthorSchema()))
-    genres = fields.List(fields.Nested(lambda: GenreSchema()))
-    publisher_id = ma.auto_field()
-    publisher = fields.Nested(lambda: PublisherSchema())
-    languages = fields.List(fields.Nested(lambda: LanguageSchema()))
-    series = fields.List(fields.Nested(lambda: SeriesSchema()))
+
+    # Relationships
+    proviers = fields.List(fields.Nested(lambda: ProviderSchema(), allow_none=True))
+    publishers = fields.List(fields.Nested(lambda: PublisherSchema(), allow_none=True))
+    authors = fields.List(fields.Nested(lambda: AuthorSchema(), allow_none=True))
+    genres = fields.List(fields.Nested(lambda: GenreSchema(), allow_none=True))
+    languages = fields.List(fields.Nested(lambda: LanguageSchema(), allow_none=True))
+    series = fields.List(fields.Nested(lambda: SeriesSchema(), allow_none=True))
 
 
 class AuthorSchema(ma.SQLAlchemySchema):
@@ -43,11 +54,15 @@ class AuthorSchema(ma.SQLAlchemySchema):
     id = ma.auto_field(dump_only=True)
     name = ma.auto_field()
     birth_date = ma.auto_field()
+    birth_date_str = ma.auto_field()
     death_date = ma.auto_field()
+    death_date_str = ma.auto_field()
     biography = ma.auto_field()
     other_names = ma.auto_field()
     photo_url = ma.auto_field()
     books = fields.List(fields.Nested(lambda: BookSchema()))
+    open_library_id = ma.auto_field()
+    casa_del_libro_id = ma.auto_field()
 
 
 class GenreSchema(ma.SQLAlchemySchema):
@@ -90,7 +105,7 @@ class ProviderSchema(ma.SQLAlchemySchema):
     class Meta:
         model = Provider
 
-    id = ma.auto_field(dump_only=True)
+    id = ma.auto_field()
     alejandria_code = ma.auto_field()
     cedula = ma.auto_field()
     name = ma.auto_field()
@@ -99,8 +114,9 @@ class ProviderSchema(ma.SQLAlchemySchema):
     phone = ma.auto_field()
     email = ma.auto_field()
     contact_name = ma.auto_field()
-    banco = ma.auto_field()
+    nombre_banco = ma.auto_field()
     titular_banco = ma.auto_field()
     rif_banco = ma.auto_field()
     cod_cuenta = ma.auto_field()
+    notes = ma.auto_field()
     books = fields.List(fields.Nested(lambda: BookSchema()))

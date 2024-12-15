@@ -15,23 +15,28 @@ class BookFactory(factory.alchemy.SQLAlchemyModelFactory):
     subtitle = factory.Faker('sentence')
     isbn_10 = factory.Faker('isbn10')
     isbn_13 = factory.Faker('isbn13')
-    alejandria_isbn = factory.Faker('isbn13')
     publish_date = factory.Faker('date_object')
     description = factory.Faker('text')
-    current_price = factory.Faker(
-        'pyfloat', right_digits=2, positive=True, min_value=10, max_value=100)
-    cover_url = factory.Faker('image_url')
-    current_price = factory.Faker(
-        'pyfloat', min_value=3, max_value=200, right_digits=2, positive=True)
-    previous_price = factory.Faker(
-        'pyfloat', min_value=3, max_value=200, right_digits=2, positive=True)
-    physical_format = factory.Faker(
-        'random_element', elements=('Hardcover', 'Paperback', 'Ebook'))
+    current_price = factory.Faker('pyfloat', right_digits=2, positive=True, min_value=10, max_value=100)
+    previous_price = factory.Faker('pyfloat', min_value=3, max_value=200, right_digits=2, positive=True)
+    price_alejandria = factory.Faker('pyfloat', right_digits=2, positive=True, min_value=5, max_value=150)
+    iva = factory.Faker('pyfloat', right_digits=2, positive=True, min_value=1, max_value=20)
+    cost = factory.Faker('pyfloat', right_digits=2, positive=True, min_value=5, max_value=150)
+    cost_supplier = factory.Faker('pyfloat', right_digits=2, positive=True, min_value=5, max_value=150)
+    average_cost_alejandria = factory.Faker('pyfloat', right_digits=2, positive=True, min_value=5, max_value=150)
+    last_cost_alejandria = factory.Faker('pyfloat', right_digits=2, positive=True, min_value=5, max_value=150)
+    stock = factory.Faker('random_int', min=0, max=500)
+    stock_alejandria = factory.Faker('random_int', min=0, max=500)
+    stock_consig = factory.Faker('random_int', min=0, max=500)
+    stock_consig_alejandria = factory.Faker('random_int', min=0, max=500)
+    physical_format = factory.Faker('random_element', elements=('Hardcover', 'Paperback', 'Ebook'))
     number_of_pages = factory.Faker('random_int', min=100, max=1000)
-    physical_dimensions = factory.Faker(
-        'random_element', elements=('5x8', '6x9', '8x11'))
+    bar_code_alejandria = factory.Faker('ean13')
+    isbn_alejandria = factory.Faker('isbn13')
+    code_alejandria = factory.Faker('ean8')
+    physical_dimensions = factory.Faker('random_element', elements=('5x8', '6x9', '8x11'))
     weight = factory.Faker('random_element', elements=('1lb', '2lb', '3lb'))
-    publish_place = factory.Faker('city')
+    publish_places = factory.LazyAttribute(lambda _: [factory.Faker('city').evaluate({}, None, {'locale': None}) for _ in range(3)])
     edition_name = factory.Faker('sentence', nb_words=3)
 
 
@@ -43,8 +48,13 @@ class AuthorFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     name = factory.Faker('name')
     birth_date = factory.Faker('date_object')
+    birth_date_str = factory.LazyAttribute(lambda o: f"{o.birth_date.year}-{o.birth_date.month}-{o.birth_date.day}")
     death_date = factory.Faker('date_object')
+    death_date_str = factory.LazyAttribute(lambda o: f"{o.death_date.year}-{o.death_date.month}-{o.death_date.day}")
     biography = factory.Faker('paragraph')
+    other_names = factory.LazyAttribute(lambda _: [factory.Faker('name').evaluate({}, None, {'locale': None}) for _ in range(3)])
+    open_library_id = factory.Faker('isbn13')
+    casa_del_libro_id = factory.Faker('isbn13')
 
 
 class GenreFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -127,7 +137,7 @@ class ProviderFactory(factory.alchemy.SQLAlchemyModelFactory):
     phone = factory.Faker('phone_number')
     email = factory.Faker('email')
     contact_name = factory.Faker('name')
-    banco = factory.Faker('random_element', elements=[
+    nombre_banco = factory.Faker('random_element', elements=[
         'BANCO DE VENEZUELA',
         'BANCO VENEZOLANO DE CREDITO',
         'BANCO MERCANTIL',
@@ -155,4 +165,3 @@ class ProviderFactory(factory.alchemy.SQLAlchemyModelFactory):
     cod_cuenta = factory.Faker('random_int', min=100000000000, max=999999999999)
     notes = factory.Faker('paragraph')
     books = factory.LazyAttribute(lambda _: [BookFactory() for _ in range(random.randint(1, 5))])
-

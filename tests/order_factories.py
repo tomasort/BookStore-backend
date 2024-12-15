@@ -29,7 +29,6 @@ class OrderFactory(factory.alchemy.SQLAlchemyModelFactory):
         if not create:
             # Skip adding items if we're in "build" mode (no persistence).
             return
-
         # If specific items are provided, add them.
         if extracted:
             for item in extracted:
@@ -39,7 +38,6 @@ class OrderFactory(factory.alchemy.SQLAlchemyModelFactory):
             # Otherwise, generate a random number of items.
             for _ in range(random.randint(1, 5)):
                 OrderItemFactory(order=self, **kwargs)
-
         # Commit the items to the session.
         db.session.commit()
 

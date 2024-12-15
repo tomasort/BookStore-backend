@@ -19,7 +19,6 @@ def test_create_simple_book(client, book_factory):
         content_type="application/json"
     )
     # Assert that the request was successful
-    print(response.get_json())
     assert response.status_code == 201
     response_data = response.get_json()
     assert "book_id" in response_data
@@ -67,7 +66,6 @@ def test_update_book(client, book_factory, num_books):
         content_type="application/json",
     )
     # Assert that the update was successful
-    print(update_response.get_json())
     assert update_response.status_code == 200
     # Verify that the book was updated
     updated_book: Book | None = db.session.execute(select(Book).where(
