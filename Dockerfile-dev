@@ -4,7 +4,6 @@ WORKDIR /src
 
 RUN pip install --upgrade pip
 
-# Install GStreamer and its plugins (including WebRTC and Python bindings)
 RUN apk add --no-cache \ 
     postgresql15 \
     build-base
@@ -15,4 +14,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["flask run", "--host=0.0.0.0"]
+CMD ["flask", "run", "--host=0.0.0.0"]
