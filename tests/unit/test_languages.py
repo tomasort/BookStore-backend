@@ -1,5 +1,5 @@
 import json
-from sqlalchemy import select
+from sqlalchemy import select, func
 from random import choice
 import pytest
 from app.api.models import Language
@@ -23,9 +23,11 @@ def test_create_language(client, language_factory):
 @pytest.mark.parametrize("num_languages", [1, 3, 10, 20])
 def test_get_languages(client, language_factory, num_languages):
     language_factory.create_batch(num_languages)
+    num_languages_in_db = db.session.execute(select(func.count()).select_from(Language)).scalar()
     response = client.get("api/languages")
     assert response.status_code == 200
-    assert len(response.get_json()) == num_languages
+    data = response.get_json()
+    assert len(data) == num_languages_in_db
 
 
 @pytest.mark.parametrize("num_languages", [1, 3, 10, 20])

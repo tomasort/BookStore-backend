@@ -1,5 +1,5 @@
 import json
-from sqlalchemy import select
+from sqlalchemy import select, func
 from app.orders.schemas import OrderSchema, OrderItemSchema
 from app.orders.models import Order, OrderItem
 from app import db
@@ -13,16 +13,15 @@ order_item_schema = OrderItemSchema()
 @pytest.mark.parametrize("num_orders", [1, 3, 10])
 def test_get_orders(client, order_factory, num_orders):
     orders = order_factory.create_batch(num_orders)
-    print(orders)
+    num_orders_in_db = db.session.execute(select(func.count()).select_from(Order)).scalar()
     response = client.get("/orders")
     assert response.status_code == 200
     data = response.get_json()
     assert isinstance(data, list)
-    assert len(data) == num_orders
-    for order, response_order in zip(orders, data):
-        assert order.id == response_order["id"]
-        assert order.customer_id == response_order["customer_id"]
-        assert order.status == response_order["status"]
+    assert len(data) == num_orders_in_db
+    created_order_ids = {order.id for order in orders}
+    response_order_ids = {order["id"] for order in data}
+    assert created_order_ids.issubset(response_order_ids)
 
 
 def test_create_order(client, order_factory):

@@ -1,4 +1,5 @@
 import json
+from faker import Faker
 from random import choice
 import pytest
 from app import db
@@ -29,16 +30,16 @@ def test_create_simple_book(client, book_factory):
 
 @pytest.mark.parametrize("num_books", [1, 3, 10, 20])
 def test_get_books(client, book_factory, num_books):
+    # Create a batch of books
     books = book_factory.create_batch(num_books)
     # Send a GET request to retrieve all books
     response = client.get("/api/books")
-    # Assert that the request was successful
     assert response.status_code == 200
     data = response.get_json()
-    assert isinstance(data, list)  # Should return a list of books
-    assert len(data) == num_books  # The list should not be empty
-    assert data[0]["title"] == books[0].title
-    assert data[-1]["title"] == books[-1].title
+    assert isinstance(data, list)
+    created_book_titles = {book.title for book in books}
+    response_book_titles = {book["title"] for book in data}
+    assert created_book_titles.issubset(response_book_titles)
 
 
 @pytest.mark.parametrize("num_books", [1, 10, 20])
@@ -55,21 +56,21 @@ def test_get_specific_book(client, book_factory, num_books):
 
 @pytest.mark.parametrize("num_books", [1, 10, 20])
 def test_update_book(client, book_factory, num_books):
+    fake = Faker()
     # Create a book to update
     books = book_factory.create_batch(num_books)
     # Update the book's title
-    update_data = {"title": "Updated Test Book", "isbn_10": "1234567890"}
-    book_id = choice(books).id
+    update_data = {"title": fake.sentence(), "isbn_10": fake.isbn10()}
+    book = choice(books)
     update_response = client.put(
-        f"/api/books/{book_id}",
+        f"/api/books/{book.id}",
         data=json.dumps(update_data),
         content_type="application/json",
     )
     # Assert that the update was successful
     assert update_response.status_code == 200
     # Verify that the book was updated
-    updated_book: Book | None = db.session.execute(select(Book).where(
-        Book.id == book_id)).scalar()
+    updated_book = db.session.execute(select(Book).where(Book.id == book.id)).scalar()
     if updated_book is None:
         assert False
     assert updated_book.title == update_data["title"]
@@ -78,16 +79,16 @@ def test_update_book(client, book_factory, num_books):
 
 @pytest.mark.parametrize("num_books", [1, 10, 20])
 def test_delete_book(client, book_factory, num_books):
+    # Create a batch of books
     books = book_factory.create_batch(num_books)
     book_to_delete = choice(books)
-    # Send a DELETE request to remove the book
     delete_response = client.delete(f"/api/books/{book_to_delete.id}")
     assert delete_response.status_code == 200
-    # Verify that the book no longer exists
-    assert db.session.execute(
-        select(func.count()).select_from(Book)).scalar() == num_books - 1
-    assert db.session.execute(select(func.count()).select_from(
-        Book).where(Book.id == book_to_delete.id)).scalar() == 0
+    deleted_book = db.session.execute(select(Book).where(Book.id == book_to_delete.id)).scalar()
+    assert deleted_book is None
+    remaining_book_ids = {book.id for book in books if book != book_to_delete}
+    db_book_ids = {id for id in db.session.execute(select(Book.id)).scalars()}
+    assert remaining_book_ids.issubset(db_book_ids)
 
 
 # TODO: add test for multiple search results

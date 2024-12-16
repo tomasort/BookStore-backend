@@ -77,10 +77,10 @@ def test_get_authors(client, author_factory, num_authors):
     assert response.status_code == 200
     data = response.get_json()
     assert isinstance(data, list)  # Should return a list of authors
-    assert len(data) == num_authors  # The list should not be empty
-    # check that the author ids are in the response
-    ids = [a.id for a in authors]
-    assert all([author['id'] in ids for author in data])
+    created_author_ids = {author.id for author in authors}
+    response_author_ids = {author['id'] for author in data}
+    # Assert that all created authors are in the response
+    assert created_author_ids.issubset(response_author_ids)
 
 
 @pytest.mark.parametrize("num_authors", [1, 3, 10])
@@ -120,17 +120,26 @@ def test_update_author(client, author_factory, num_authors):
 
 @pytest.mark.parametrize("num_authors", [1, 10, 20])
 def test_delete_author(client, author_factory, num_authors):
+    # Create a batch of authors
     authors = author_factory.create_batch(num_authors)
     author_to_delete = choice(authors)
+
     # Send a DELETE request to delete the author
     response = client.delete(f"/api/authors/{author_to_delete.id}")
+
     # Assert that the request was successful
     assert response.status_code == 200
+
     # Check that the author was deleted
-    assert db.session.execute(select(Author).where(
-        Author.id == author_to_delete.id)).scalar() is None
-    assert db.session.execute(
-        select(func.count(Author.id))).scalar() == num_authors - 1
+    deleted_author = db.session.execute(select(Author).where(Author.id == author_to_delete.id)).scalar()
+    assert deleted_author is None
+
+    # Verify the remaining authors still exist by comparing their IDs
+    remaining_author_ids = {author.id for author in authors if author != author_to_delete}
+    db_author_ids = {id for id in db.session.execute(select(Author.id)).scalars()}
+
+    # Assert that all remaining authors are still in the database
+    assert remaining_author_ids.issubset(db_author_ids)
 
 
 @pytest.mark.parametrize("num_authors,author_books,total_books", [

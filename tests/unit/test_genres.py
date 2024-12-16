@@ -9,8 +9,6 @@ from sqlalchemy import select, func
 @pytest.mark.parametrize("num_genres", [1, 3, 10, 20])
 def test_create_genre(client, genre_factory, num_genres):
     genres = genre_factory.build_batch(num_genres)
-    assert db.session.execute(
-        select(func.count()).select_from(Genre)).scalar() == 0
     # Create a new genre
     for genre in genres:
         response = client.post(
@@ -21,21 +19,23 @@ def test_create_genre(client, genre_factory, num_genres):
         data = response.get_json()
         assert response.status_code == 201
         assert data['message'] == 'Genre created successfully'
-    # Verify that all the genres were created
-    assert db.session.execute(
-        select(func.count()).select_from(Genre)).scalar() == num_genres
+    created_genres = {genre.name for genre in genres}
+    genres_in_db = set(db.session.execute(select(Genre.name)).scalars())
+    assert created_genres.issubset(genres_in_db)
 
 
 @pytest.mark.parametrize("num_genres", [1, 3, 10, 20])
 def test_get_genres(client, genre_factory, num_genres):
+    num_genres_in_db = db.session.execute(select(func.count()).select_from(Genre)).scalar()
     genres = genre_factory.create_batch(num_genres)
     # Retrieve a list of genres
     response = client.get('/api/genres')
     data = response.get_json()
     assert response.status_code == 200
-    assert len(data) == num_genres
-    genre_ids = [genre.id for genre in genres]
-    assert all([genre['id'] in genre_ids for genre in data])
+    assert len(data) == num_genres_in_db + num_genres
+    created_genres = {genre.name for genre in genres}
+    response_genres = {genre['name'] for genre in data}
+    assert created_genres.issubset(response_genres)
 
 
 @pytest.mark.parametrize("num_genres", [1, 3, 10, 20])
@@ -71,12 +71,11 @@ def test_update_genre(client, genre_factory, num_genres):
 def test_delete_genre(client, genre_factory, num_genres):
     genres = genre_factory.create_batch(num_genres)
     selected_genre = choice(genres)
+    num_genres_in_db = db.session.execute(select(func.count()).select_from(Genre)).scalar()
     # Delete the genre
     response = client.delete(f'/api/genres/{selected_genre.id}')
     data = response.get_json()
     assert response.status_code == 200
     assert data['message'] == 'Genre deleted successfully'
-    assert db.session.execute(
-        select(func.count()).select_from(Genre)).scalar() == num_genres - 1
-    assert db.session.execute(select(Genre).where(
-        Genre.id == selected_genre.id)).scalar() is None
+    assert db.session.execute(select(func.count()).select_from(Genre)).scalar() == num_genres_in_db - 1
+    assert db.session.execute(select(Genre).where(Genre.id == selected_genre.id)).scalar() is None

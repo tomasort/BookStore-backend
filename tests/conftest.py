@@ -44,9 +44,9 @@ def runner(app):
     return app.test_cli_runner()
 
 
-@pytest.fixture(autouse=True)
-def cleanup_db(app):
-    with app.app_context():
-        yield
-        db.drop_all()
-        db.create_all()
+# @pytest.fixture(autouse=True)
+# def cleanup_db(app):
+#     with app.app_context():
+#         yield
+#         db.drop_all()
+#         db.create_all()

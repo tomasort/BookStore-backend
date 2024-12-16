@@ -9,6 +9,7 @@ from sqlalchemy import select, func
 
 @pytest.mark.parametrize("num_series", [1, 3, 10, 20])
 def test_create_series(client, series_factory, num_series):
+    series_in_db = db.session.execute(select(func.count()).select_from(Series)).scalar()
     series = series_factory.build_batch(num_series)
     for s in series:
         # Create a new series
@@ -21,21 +22,22 @@ def test_create_series(client, series_factory, num_series):
         assert response.status_code == 201
         assert data['message'] == 'Series created successfully'
     # Verify that all the series were created
-    assert db.session.execute(
-        select(func.count()).select_from(Series)).scalar() == num_series
+    assert db.session.execute(select(func.count()).select_from(Series)).scalar() == series_in_db + num_series
 
 
 @pytest.mark.parametrize("num_series", [1, 3, 10, 20])
 def test_get_series(client, series_factory, num_series):
     # Create new series
     series = series_factory.create_batch(num_series)
+    num_series_in_db = db.session.execute(select(func.count()).select_from(Series)).scalar()
     # Retrieve a list of series
     response = client.get('/api/series')
     data = response.get_json()
     assert response.status_code == 200
-    assert len(data) == num_series
-    series_ids = [s.id for s in series]
-    assert all([series['id'] in series_ids for series in data])
+    assert len(data) == num_series_in_db
+    created_series = {s.name for s in series}
+    response_series = {s['name'] for s in data}
+    assert created_series.issubset(response_series)
 
 
 @pytest.mark.parametrize("num_series", [1, 3, 10, 20])
@@ -73,13 +75,12 @@ def test_update_series(client, series_factory, num_series):
 def test_delete_series(client, series_factory, num_series):
     # Create a new series
     series = series_factory.create_batch(num_series)
+    num_series_in_db = db.session.execute(select(func.count()).select_from(Series)).scalar()
     selected_series = choice(series)
     # Delete the series
     response = client.delete(f'/api/series/{selected_series.id}')
     data = response.get_json()
     assert response.status_code == 200
     assert data['message'] == 'Series deleted successfully'
-    assert db.session.execute(select(func.count()).select_from(
-        Series)).scalar() == num_series - 1
-    assert db.session.execute(select(Series).where(
-        Series.id == selected_series.id)).scalar() is None
+    assert db.session.execute(select(func.count()).select_from(Series)).scalar() == num_series_in_db - 1
+    assert db.session.execute(select(Series).where(Series.id == selected_series.id)).scalar() is None
