@@ -10,6 +10,7 @@ book_schema = BookSchema()
 
 # TODO: use longin required for create, update, delete routes
 
+
 @books.route("", methods=["POST"])
 def create_book():
     data = request.json
@@ -41,10 +42,8 @@ def update_book(book_id):
                     data.get(key, value), "%Y-%m-%d").date())
                 continue
             setattr(book, key, data.get(key, value))
-
         db.session.commit()
         return jsonify({"message": "Book updated successfully"}), 200
-
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
