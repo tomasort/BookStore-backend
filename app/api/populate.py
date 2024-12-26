@@ -308,6 +308,8 @@ def process_series(session, book, book_row):
 
 commit = True
 
+# TODO: add some books to the featured books table
+
 
 @api.cli.command(name='populate')
 @click.option('--books_path', help='CSV file to read book data from')

@@ -1,4 +1,4 @@
-from app.api.models import Author, Book, Publisher, Genre, Language, Series, Provider
+from app.api.models import Author, Book, Publisher, Genre, Language, Series, Provider, FeaturedBook
 import random
 import factory
 from app import db
@@ -165,3 +165,15 @@ class ProviderFactory(factory.alchemy.SQLAlchemyModelFactory):
     cod_cuenta = factory.Faker('random_int', min=100000000000, max=999999999999)
     notes = factory.Faker('paragraph')
     books = factory.LazyAttribute(lambda _: [BookFactory() for _ in range(random.randint(1, 5))])
+
+
+class FeaturedBookFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta:
+        model = FeaturedBook
+        sqlalchemy_session = db.session
+        sqlalchemy_session_persistence = "commit"
+
+    featured_date = factory.Faker('date_object')  # Random date for featured date
+    expiry_date = factory.LazyAttribute(lambda o: o.featured_date.replace(year=o.featured_date.year + 1))
+    priority = factory.Faker('random_int', min=1, max=5)
+    book = factory.SubFactory(BookFactory)  # Reference an existing BookFactory

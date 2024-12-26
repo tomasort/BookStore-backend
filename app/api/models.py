@@ -114,6 +114,8 @@ class Book(BaseModel):
     publish_places: so.Mapped[Optional[list[str]]] = so.mapped_column(MutableList.as_mutable(sa.JSON))
     edition_name: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     subtitle: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    discounts: so.Mapped[Optional[list["Discount"]]] = so.relationship("Discount", back_populates="book")
+
 
     # Define the relationships
     providers: so.Mapped[list["Provider"]] = so.relationship(
@@ -204,3 +206,28 @@ class Provider(BaseModel):
 
     def __repr__(self) -> str:
         return f"<Provider(id={self.id}, name='{self.name}')>"
+
+
+class FeaturedBook(BaseModel):
+    id: so.Mapped[int] = so.mapped_column(primary_key=True, autoincrement=True)
+    book_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("book.id", ondelete="CASCADE"), nullable=False)
+    featured_date: so.Mapped[Optional[sa.Date]] = so.mapped_column(sa.Date, default=sa.func.current_date())
+    expiry_date: so.Mapped[Optional[sa.Date]] = so.mapped_column(sa.Date, nullable=True)
+    priority: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer, nullable=True, default=0)  # Lower number = higher priority
+
+    # Relationship to the Book table
+    book: so.Mapped["Book"] = so.relationship("Book")
+
+    def __repr__(self) -> str:
+        return f"<FeaturedBook(id={self.id}, book_id={self.book_id}, priority={self.priority})>"
+
+class Discount(BaseModel):
+    id: so.Mapped[int] = so.mapped_column(primary_key=True, autoincrement=True)
+    book_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("book.id", ondelete="CASCADE"), nullable=True)
+    percentage: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(5, 2))  # e.g., 10.00 for 10% off
+    fixed_amount: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(10, 2))  # e.g., $5 off
+    start_date: so.Mapped[Optional[sa.Date]] = so.mapped_column(sa.Date, nullable=True)
+    end_date: so.Mapped[Optional[sa.Date]] = so.mapped_column(sa.Date, nullable=True)
+
+    # Relationship to Book
+    book: so.Mapped["Book"] = so.relationship("Book", back_populates="discounts")

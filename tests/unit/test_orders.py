@@ -24,10 +24,14 @@ def test_get_orders(client, order_factory, num_orders):
     assert created_order_ids.issubset(response_order_ids)
 
 
-def test_create_order(client, order_factory):
+def test_create_order(client, order_factory, user_factory):
+    user = user_factory.create()
     order = order_factory.build()
-    order_data = OrderSchema(exclude=["id"]).dump(order)
+    order.user_id = user.id
+    order_data = OrderSchema(exclude=["id", "user"]).dump(order)
+    print(order_data)
     response = client.post("/orders", json=order_data)
+    print(response.get_json())
     response_json = response.get_json()
     assert response.status_code == 201
     assert response_json["message"] == "Order created successfully"
@@ -53,7 +57,7 @@ def test_get_order_success(client, order_factory):
     assert response.status_code == 200
     response_json = response.get_json()
     assert response_json["id"] == order.id
-    assert response_json["customer_id"] == order.customer_id
+    assert response_json["user_id"] == order.user_id
     assert response_json["status"] == order.status
 
 

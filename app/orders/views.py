@@ -3,6 +3,7 @@ from flask import request, jsonify
 from app.orders import orders
 from app.orders.models import Order, OrderItem
 from app.orders.schemas import OrderSchema, OrderItemSchema
+from app.auth.models import User
 from app import db
 
 order_schema = OrderSchema()
@@ -24,6 +25,11 @@ def create_order():
     try:
         order_data = order_schema.load(data)
         new_order = Order(**order_data)
+        # Find the user that is trying to create the order
+        user = db.session.execute(select(User).where(User.id == new_order.user_id)).scalar()
+        if not user:
+            return jsonify({'error': f"User {new_order.user_id} not found"}), 404
+        new_order.user = user
         db.session.add(new_order)
         db.session.commit()
     except Exception as e:

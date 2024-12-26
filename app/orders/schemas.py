@@ -1,5 +1,6 @@
 from app import ma
 from app.orders.models import Order, OrderItem
+from app.auth.models import User
 from marshmallow import fields  # Use marshmallow's fields module
 
 
@@ -8,11 +9,12 @@ class OrderSchema(ma.SQLAlchemySchema):
         model = Order
 
     id = ma.auto_field(dump_only=True)
-    customer_id = ma.auto_field()
+    user_id = ma.auto_field()
     date = ma.auto_field()
     total = fields.Decimal(as_string=True)
     items = fields.List(fields.Nested(lambda: OrderItemSchema()))
     status = ma.auto_field()
+    user = fields.Nested('UserSchema', exclude=('orders', ), allow_none=True)
 
 
 class OrderItemSchema(ma.SQLAlchemySchema):

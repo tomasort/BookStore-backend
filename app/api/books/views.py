@@ -61,7 +61,7 @@ def get_books():
 def get_book(book_id):
     """Retrieve a single book by its ID"""
     book = db.get_or_404(Book, book_id)
-    return jsonify(book.to_dict()), 200
+    return jsonify(book_schema.dump(book)), 200
 
 
 @books.route("/<int:book_id>", methods=["DELETE"])

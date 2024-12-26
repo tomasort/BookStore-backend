@@ -50,6 +50,9 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.api import api
     app.register_blueprint(api)
 
+    from app.auth import auth
+    app.register_blueprint(auth)
+
     from app.orders import orders
     app.register_blueprint(orders)
 

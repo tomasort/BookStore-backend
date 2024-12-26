@@ -1,5 +1,4 @@
 import sqlalchemy as sa
-from typing import List
 import sqlalchemy.orm as so
 from datetime import datetime
 from decimal import Decimal
@@ -9,14 +8,15 @@ from app import db
 
 class Order(db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    customer_id: so.Mapped[int] = so.mapped_column(sa.Integer, nullable=False)
     date: so.Mapped[datetime] = so.mapped_column(sa.DateTime, nullable=False, default=datetime.now)
     total: so.Mapped[Decimal] = so.mapped_column(sa.Numeric(10, 2), nullable=False)
-    items: so.Mapped[List["OrderItem"]] = so.relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
+    items: so.Mapped[list["OrderItem"]] = so.relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
     status: so.Mapped[str] = so.mapped_column(sa.String, nullable=False, default="pending")
+    user_id: so.Mapped[int] = so.mapped_column(sa.Integer, sa.ForeignKey('user.id'), nullable=False)
+    user: so.Mapped["User"] = so.relationship("User", back_populates="orders")
 
     def __repr__(self):
-        return f"<Order {self.id}, customer={self.customer_id}, total={self.total}, items={self.items}>"
+        return f"<Order {self.id}, customer={self.user_id}, total={self.total}, items={self.items}>"
 
 
 class OrderItem(db.Model):

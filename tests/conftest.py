@@ -1,7 +1,18 @@
 import pytest
 from app import create_app, db
-from tests.book_factories import BookFactory, AuthorFactory, GenreFactory, ProviderFactory, PublisherFactory, LanguageFactory, SeriesFactory
-from tests.order_factories import OrderFactory, OrderItemFactory
+from tests.factories import (
+    BookFactory,
+    AuthorFactory,
+    GenreFactory,
+    PublisherFactory,
+    LanguageFactory,
+    SeriesFactory,
+    ProviderFactory,
+    FeaturedBookFactory,
+    OrderFactory,
+    OrderItemFactory,
+    UserFactory,
+)
 from pytest_factoryboy import register
 
 register(BookFactory)
@@ -11,9 +22,12 @@ register(PublisherFactory)
 register(LanguageFactory)
 register(SeriesFactory)
 register(ProviderFactory)
+register(FeaturedBookFactory)
 
 register(OrderFactory)
 register(OrderItemFactory)
+
+register(UserFactory)
 
 
 @pytest.fixture(scope="session")

@@ -1,5 +1,5 @@
 from app import ma
-from app.api.models import Book, Author, Genre, Series, Publisher, Language, Provider
+from app.api.models import Book, Author, Genre, Series, Publisher, Language, Provider, FeaturedBook
 from marshmallow import fields
 
 
@@ -39,12 +39,12 @@ class BookSchema(ma.SQLAlchemySchema):
     subtitle = ma.auto_field()
 
     # Relationships
-    proviers = fields.List(fields.Nested(lambda: ProviderSchema(), allow_none=True))
-    publishers = fields.List(fields.Nested(lambda: PublisherSchema(), allow_none=True))
-    authors = fields.List(fields.Nested(lambda: AuthorSchema(), allow_none=True))
-    genres = fields.List(fields.Nested(lambda: GenreSchema(), allow_none=True))
-    languages = fields.List(fields.Nested(lambda: LanguageSchema(), allow_none=True))
-    series = fields.List(fields.Nested(lambda: SeriesSchema(), allow_none=True))
+    proviers = fields.List(fields.Nested(lambda: ProviderSchema(exclude=['books']), allow_none=True))
+    publishers = fields.List(fields.Nested(lambda: PublisherSchema(exclude=['books']), allow_none=True))
+    authors = fields.List(fields.Nested(lambda: AuthorSchema(exclude=['books']), allow_none=True))
+    genres = fields.List(fields.Nested(lambda: GenreSchema(exclude=['books']), allow_none=True))
+    languages = fields.List(fields.Nested(lambda: LanguageSchema(exclude=['books']), allow_none=True))
+    series = fields.List(fields.Nested(lambda: SeriesSchema(exclude=['books']), allow_none=True))
 
 
 class AuthorSchema(ma.SQLAlchemySchema):
@@ -60,7 +60,7 @@ class AuthorSchema(ma.SQLAlchemySchema):
     biography = ma.auto_field()
     other_names = ma.auto_field()
     photo_url = ma.auto_field()
-    books = fields.List(fields.Nested(lambda: BookSchema()))
+    books = fields.List(fields.Nested(lambda: BookSchema(exclude=['authors'])))
     open_library_id = ma.auto_field()
     casa_del_libro_id = ma.auto_field()
 
@@ -71,7 +71,7 @@ class GenreSchema(ma.SQLAlchemySchema):
 
     id = ma.auto_field(dump_only=True)
     name = ma.auto_field()
-    books = fields.List(fields.Nested(lambda: BookSchema()))
+    books = fields.List(fields.Nested(lambda: BookSchema(exclude=['genres'])))
 
 
 class SeriesSchema(ma.SQLAlchemySchema):
@@ -80,7 +80,7 @@ class SeriesSchema(ma.SQLAlchemySchema):
 
     id = ma.auto_field(dump_only=True)
     name = ma.auto_field()
-    books = fields.List(fields.Nested(lambda: BookSchema()))
+    books = fields.List(fields.Nested(lambda: BookSchema(exclude=['series'])))
 
 
 class PublisherSchema(ma.SQLAlchemySchema):
@@ -89,7 +89,7 @@ class PublisherSchema(ma.SQLAlchemySchema):
 
     id = ma.auto_field(dump_only=True)
     name = ma.auto_field()
-    books = fields.List(fields.Nested(lambda: BookSchema()))
+    books = fields.List(fields.Nested(lambda: BookSchema(exclude=['publishers'])))
 
 
 class LanguageSchema(ma.SQLAlchemySchema):
@@ -98,7 +98,7 @@ class LanguageSchema(ma.SQLAlchemySchema):
 
     id = ma.auto_field(dump_only=True)
     name = ma.auto_field()
-    books = fields.List(fields.Nested(lambda: BookSchema()))
+    books = fields.List(fields.Nested(lambda: BookSchema(exclude=['languages'])))
 
 
 class ProviderSchema(ma.SQLAlchemySchema):
@@ -119,4 +119,17 @@ class ProviderSchema(ma.SQLAlchemySchema):
     rif_banco = ma.auto_field()
     cod_cuenta = ma.auto_field()
     notes = ma.auto_field()
-    books = fields.List(fields.Nested(lambda: BookSchema()))
+    books = fields.List(fields.Nested(lambda: BookSchema(exclude=['providers'])))
+
+
+class FeaturedBookSchema(ma.SQLAlchemySchema):
+    class Meta:
+        model = FeaturedBook
+
+    id = ma.auto_field(dump_only=True)
+    book_id = ma.auto_field()
+    featured_date = ma.auto_field()
+    expiry_date = ma.auto_field()
+    priority = ma.auto_field()
+
+    book = fields.Nested(lambda: BookSchema())
