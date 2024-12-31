@@ -38,6 +38,7 @@ class BookFactory(factory.alchemy.SQLAlchemyModelFactory):
     weight = factory.Faker('random_element', elements=('1lb', '2lb', '3lb'))
     publish_places = factory.LazyAttribute(lambda _: [factory.Faker('city').evaluate({}, None, {'locale': None}) for _ in range(3)])
     edition_name = factory.Faker('sentence', nb_words=3)
+    authors = factory.LazyAttribute(lambda _: [AuthorFactory() for _ in range(random.randint(1, 3))])
 
 
 class AuthorFactory(factory.alchemy.SQLAlchemyModelFactory):

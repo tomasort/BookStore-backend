@@ -2,6 +2,7 @@ from app.auth import auth
 from app import db, admin_required
 from app.auth.models import User
 from app.auth.schemas import UserSchema
+from app.api.models import Book
 from flask import request, jsonify
 from sqlalchemy.exc import IntegrityError
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, set_access_cookies
@@ -12,17 +13,12 @@ user_schema = UserSchema()
 
 
 @auth.route('/users', methods=['POST'])
-def create_user():
+def register_user():
     data = request.json
-
-    # Ensure password is provided
-    if 'password' not in data:
-        return jsonify({"error": "Password is required"}), 400
-    if 'username' not in data:
-        return jsonify({"error": "Username is required"}), 400
-    if 'email' not in data:
-        return jsonify({"error": "Email is required"}), 400
-
+    # Ensure required fields are provided
+    for field in ['username', 'password', 'email']:
+        if field not in data:
+            return jsonify({"error": f"{field.capitalize()} is required"}), 400
     try:
         # Validate and deserialize input data
         username = data.get('username')
@@ -67,6 +63,7 @@ def create_user():
 
 
 @auth.route('/users', methods=['GET'])
+@admin_required()
 def get_users():
     users = db.session.execute(db.select(User)).scalars().all()
     serialized_users = user_schema.dump(users, many=True)
@@ -84,12 +81,12 @@ def get_user(user_id):
 
 
 @auth.route('/users/<int:user_id>', methods=['PUT'])
+@jwt_required()
 def update_user(user_id):
     return f'Update user with id {user_id}'
 
 
 @auth.route('/users/<int:user_id>', methods=['DELETE'])
-@jwt_required()
 @admin_required()
 def delete_user(user_id):
     user = db.session.execute(db.select(User).where(User.id == user_id)).scalar()
@@ -100,10 +97,12 @@ def delete_user(user_id):
     return jsonify({"message": "User deleted successfully"})
 
 
-# TODO: Implement get user favorites route
 @auth.route('/users/<int:user_id>/favorites', methods=['GET'])
 def get_user_favorites(user_id):
-    return f'Get user {user_id} favorites'
+    user = db.session.execute(db.select(User).where(User.id == user_id)).scalar()
+    if user is None:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify(user_schema.dump(user)['favorites'])
 
 
 @auth.route('/users/<int:user_id>/favorites', methods=['POST'])
@@ -169,7 +168,6 @@ def logout():
 # Protect a route with jwt_required, which will kick out requests
 # without a valid JWT present.
 @auth.route("/protected", methods=["GET"])
-@jwt_required()
 @admin_required()
 def protected():
     # Access the identity of the current user with get_jwt_identity
@@ -183,4 +181,4 @@ def get_csrf_token():
     token = generate_csrf()
     response = jsonify({'msg': 'CSRF token generated'})
     response.headers['X-CSRF-Token'] = token
-    return response
+    return responseget_csrf_token

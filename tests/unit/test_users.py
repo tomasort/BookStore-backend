@@ -1,4 +1,5 @@
 import json
+from pprint import pprint
 from faker import Faker
 from random import choice
 import pytest
@@ -10,7 +11,7 @@ from sqlalchemy import select, func
 from urllib.parse import quote
 
 
-def test_create_user(client):
+def test_register_user(client):
     fake = Faker()
     response = client.post(
         "/auth/users",
@@ -84,8 +85,9 @@ def test_create_user_duplicate_username(client, user_factory):
     assert response_data["error"] == "Username is already taken"
 
 
-def test_get_users(client, user_factory):
+def test_get_users(client, user_factory, admin_token):
     users = user_factory.create_batch(3)
+    client.set_cookie("access_token_cookie", admin_token)
     response = client.get("/auth/users")
     assert response.status_code == 200
     data = response.get_json()
@@ -164,3 +166,50 @@ def test_delete_not_admin(client, user_factory, user_token, user_csrf_token):
     client.set_cookie("access_token_cookie", user_token)
     response = client.delete(f"/auth/users/{user.id}", headers={"X-CSRF-TOKEN": user_csrf_token})
     assert response.status_code == 403
+
+
+def test_get_user_favorites(client, user_factory, book_factory):
+    user = user_factory.create()
+    books = book_factory.create_batch(3)
+    for book in books:
+        user.favorites.append(book)
+    response = client.get(f"/auth/users/{user.id}/favorites")
+    assert response.status_code == 200
+    data = response.get_json()
+    assert len(data) == 3
+    assert all(isinstance(book, dict) for book in data)
+    # chech that the book ids are the same
+    response_book_ids = {book["id"] for book in data}
+    created_book_ids = {book.id for book in books}
+    assert response_book_ids == created_book_ids
+
+
+def test_add_user_favorite(client, regular_user, user_token, user_csrf_token, book_factory):
+    user = regular_user
+    book = book_factory.create()
+    client.set_cookie("access_token_cookie", user_token)
+    response = client.post(
+        f"/auth/users/{user.id}/favorites",
+        data=json.dumps({"book_id": book.id}),
+        content_type="application/json",
+        headers={"X-CSRF-TOKEN": user_csrf_token}
+    )
+    assert response.status_code == 201
+    data = response.get_json()
+    assert data["message"] == "Book added to favorites successfully"
+    assert book in user.favorites
+
+
+def test_add_user_favorite_without_token(client, user_factory, user_token, user_csrf_token, book_factory):
+    user = user_factory.create()
+    book = book_factory.create()
+    client.set_cookie("access_token_cookie", user_token)
+    response = client.post(
+        f"/auth/users/{user.id}/favorites",
+        data=json.dumps({"book_id": book.id}),
+        content_type="application/json",
+        headers={"X-CSRF-TOKEN": user_csrf_token}
+    )
+    assert response.status_code == 403
+    data = response.get_json()
+    assert data["error"] == "You are not authorized to perform this action"

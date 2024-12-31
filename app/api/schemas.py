@@ -23,7 +23,7 @@ class BookSchema(ma.SQLAlchemyAutoSchema):
     # Relationships
     proviers = fields.List(fields.Nested(lambda: ProviderSchema(exclude=['books']), allow_none=True))
     publishers = fields.List(fields.Nested(lambda: PublisherSchema(exclude=['books']), allow_none=True))
-    authors = fields.List(fields.Nested(lambda: AuthorSchema(exclude=['books']), allow_none=True))
+    authors = fields.List(fields.Nested(lambda: AuthorSchema(exclude=['books', 'biography', 'birth_date', 'birth_date_str', 'casa_del_libro_id', 'death_date', 'death_date_str', 'open_library_id']), allow_none=True))
     genres = fields.List(fields.Nested(lambda: GenreSchema(exclude=['books']), allow_none=True))
     languages = fields.List(fields.Nested(lambda: LanguageSchema(exclude=['books']), allow_none=True))
     series = fields.List(fields.Nested(lambda: SeriesSchema(exclude=['books']), allow_none=True))
