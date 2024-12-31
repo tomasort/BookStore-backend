@@ -80,6 +80,7 @@ def get_user(user_id):
     return jsonify(serialized_user)
 
 
+# TODO: implement the update_user route
 @auth.route('/users/<int:user_id>', methods=['PUT'])
 @jwt_required()
 def update_user(user_id):
@@ -132,11 +133,13 @@ def add_user_favorite(user_id):
     return jsonify({"message": "Book added to favorites successfully"}), 201
 
 
-# TODO: Implement get user wishlist routes
 @auth.route('/users/<int:user_id>/wishlist', methods=['GET'])
 @jwt_required()
 def get_user_wishlist(user_id):
-    return f'Get user {user_id} wishlist'
+    user = db.session.execute(db.select(User).where(User.id == user_id)).scalar()
+    if user is None:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify(user_schema.dump(user)['wishlist'])
 
 
 @auth.route('/login', methods=['POST'])

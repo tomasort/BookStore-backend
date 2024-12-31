@@ -11,3 +11,4 @@ class UserSchema(ma.SQLAlchemyAutoSchema):
     id = ma.auto_field(dump_only=True)
     orders = fields.Nested('OrderSchema', many=True, exclude=('user', ))
     favorites = fields.Nested('BookSchema', many=True)
+    wishlist = fields.Nested('BookSchema', many=True)
