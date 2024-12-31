@@ -1,5 +1,6 @@
 import os
-from flask import Flask
+from functools import wraps
+from flask import Flask, jsonify
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
@@ -8,6 +9,8 @@ from logging.handlers import RotatingFileHandler
 from app.config import config
 import logging
 from flask_login import LoginManager
+from flask_jwt_extended import JWTManager, get_jwt, verify_jwt_in_request
+from flask_wtf.csrf import CSRFProtect
 
 # instantiate the extensions
 db = SQLAlchemy()
@@ -15,6 +18,8 @@ migrate = Migrate()
 login = LoginManager()
 cors = CORS()
 ma = Marshmallow()
+jwt = JWTManager()
+# csrf = CSRFProtect()
 
 
 def setup_logging(app: Flask) -> None:
@@ -45,6 +50,8 @@ def create_app(config_name: str | None = None) -> Flask:
     login.init_app(app)
     cors.init_app(app)
     ma.init_app(app)
+    jwt.init_app(app)
+    # csrf.init_app(app)
 
     # register blueprints
     from app.api import api
@@ -56,7 +63,36 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.orders import orders
     app.register_blueprint(orders)
 
+    from app.promotions import promotions
+    app.register_blueprint(promotions)
+
     # set up logging
     setup_logging(app)
 
     return app
+
+
+def admin_required():
+    def wrapper(fn):
+        @wraps(fn)
+        def decorator(*args, **kwargs):
+            verify_jwt_in_request()
+            claims = get_jwt()
+            if claims.get("role") != "admin":
+                return jsonify(message="Admin only!"), 403
+            return fn(*args, **kwargs)
+        return decorator
+    return wrapper
+
+
+def role_required(role):
+    def wrapper(fn):
+        @wraps(fn)
+        def decorator(*args, **kwargs):
+            verify_jwt_in_request()
+            claims = get_jwt()
+            if claims.get("role") != role:
+                return jsonify(message=f"{role} only!"), 403
+            return fn(*args, **kwargs)
+        return decorator
+    return wrapper

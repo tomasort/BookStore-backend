@@ -1,11 +1,12 @@
 from app.auth import auth
-from app import db
+from app import db, admin_required
 from app.auth.models import User
 from app.auth.schemas import UserSchema
 from flask import request, jsonify
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm.exc import FlushError
-from marshmallow import ValidationError
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, set_access_cookies
+from flask_wtf.csrf import generate_csrf
+
 
 user_schema = UserSchema()
 
@@ -13,27 +14,39 @@ user_schema = UserSchema()
 @auth.route('/users', methods=['POST'])
 def create_user():
     data = request.json
+
+    # Ensure password is provided
+    if 'password' not in data:
+        return jsonify({"error": "Password is required"}), 400
+    if 'username' not in data:
+        return jsonify({"error": "Username is required"}), 400
+    if 'email' not in data:
+        return jsonify({"error": "Email is required"}), 400
+
     try:
         # Validate and deserialize input data
-        user_data = user_schema.load(data)
+        username = data.get('username')
+        password = data.get('password')
+        email = data.get('email')
 
-        # Create a new user instance
-        new_user = User(**user_data)
+        new_user = User(username=username, email=email)
+
+        # Set the password using the hashing function
+        new_user.set_password(password)
+
+        # Add and commit the new user
         db.session.add(new_user)
         db.session.commit()
 
-        return jsonify({"message": "User created successfully", "user_id": new_user.id}), 201
+        return jsonify({
+            "message": "User created successfully",
+            "user_id": new_user.id
+        }), 201
 
-    except ValidationError as ve:
-        # Catch validation errors from Marshmallow
-        db.session.rollback()
-        return jsonify({"error": "Validation failed", "details": ve.messages}), 400
     except IntegrityError as ie:
-        # Handle database integrity errors (e.g., unique constraint violations)
         db.session.rollback()
-        error_message = str(ie.orig)  # Get the original DB error message
+        error_message = str(ie.orig)
 
-        # More specific error message checking
         if "user.username" in error_message.lower():
             return jsonify({"error": "Username is already taken"}), 400
         elif "user.email" in error_message.lower():
@@ -45,39 +58,12 @@ def create_user():
         }), 400
 
     except Exception as e:
-        # Rollback session for any other exception
         db.session.rollback()
-        # Log the actual error for debugging
         print(f"Unexpected error: {str(e)}")
         return jsonify({"error": "An unexpected error occurred"}), 500
+
     finally:
         db.session.close()
-
-    # except IntegrityError as ie:
-    #     # Handle database integrity errors (e.g., unique constraint violations)
-    #     db.session.rollback()
-    #     error_message = str(ie.orig)  # Get the original DB error message
-
-    #     # More specific error message checking
-    #     if "user.username" in error_message.lower():
-    #         return jsonify({"error": "Username is already taken"}), 400
-    #     elif "user.email" in error_message.lower():
-    #         return jsonify({"error": "Email is already taken"}), 400
-
-    #     # Log the actual error message for debugging
-    #     print(f"IntegrityError: {error_message}")
-
-    #     return jsonify({
-    #         "error": "Database integrity error",
-    #         "details": "A unique constraint was violated"
-    #     }), 400
-
-    # except Exception as e:
-    #     # Rollback session for any other exception
-    #     db.session.rollback()
-    #     # Log the actual error for debugging
-    #     print(f"Unexpected error: {str(e)}")
-    #     return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 @auth.route('/users', methods=['GET'])
@@ -87,11 +73,114 @@ def get_users():
     return jsonify(serialized_users)
 
 
-# @auth.route('/users/<int:user_id>', methods=['GET'])
-# def get_user(user_id):
-#     return f'Get user with id {user_id}'
+@auth.route('/users/<int:user_id>', methods=['GET'])
+def get_user(user_id):
+    user = db.session.execute(db.select(User).where(User.id == user_id)).scalar()
+    if user is None:
+        return jsonify({"error": "User not found"}), 404
+
+    serialized_user = user_schema.dump(user)
+    return jsonify(serialized_user)
 
 
-# @auth.route('/users/<int:user_id>', methods=['PUT'])
-# def update_user(user_id):
-#     return f'Update user with id {user_id}'
+@auth.route('/users/<int:user_id>', methods=['PUT'])
+def update_user(user_id):
+    return f'Update user with id {user_id}'
+
+
+@auth.route('/users/<int:user_id>', methods=['DELETE'])
+@jwt_required()
+@admin_required()
+def delete_user(user_id):
+    user = db.session.execute(db.select(User).where(User.id == user_id)).scalar()
+    if user is None:
+        return jsonify({"error": "User not found"}), 404
+    db.session.delete(user)
+    db.session.commit()
+    return jsonify({"message": "User deleted successfully"})
+
+
+# TODO: Implement get user favorites route
+@auth.route('/users/<int:user_id>/favorites', methods=['GET'])
+def get_user_favorites(user_id):
+    return f'Get user {user_id} favorites'
+
+
+@auth.route('/users/<int:user_id>/favorites', methods=['POST'])
+@jwt_required()
+def add_user_favorite(user_id):
+    # check if the user exists
+    user = db.session.execute(db.select(User).where(User.id == user_id)).scalar()
+    if user is None:
+        return jsonify({"error": "User not found"}), 404
+    # check that the user is the same as the one making the request
+    current_user = get_jwt_identity()
+    if user_id != int(current_user):
+        return jsonify({"error": "You are not authorized to perform this action"}), 403
+    data = request.json
+    book_id = data.get('book_id')
+    if book_id is None:
+        return jsonify({"error": "Book ID is required"}), 400
+    # check if the book exists
+    book = db.session.execute(db.select(Book).where(Book.id == book_id)).scalar()
+    if book is None:
+        return jsonify({"error": "Book not found"}), 404
+    # check if the book is already in the user's favorites
+    if book in user.favorites:
+        return jsonify({"error": "Book is already in favorites"}), 400
+    user.favorites.append(book)
+    db.session.commit()
+    return jsonify({"message": "Book added to favorites successfully"}), 201
+
+
+# TODO: Implement get user wishlist routes
+@auth.route('/users/<int:user_id>/wishlist', methods=['GET'])
+@jwt_required()
+def get_user_wishlist(user_id):
+    return f'Get user {user_id} wishlist'
+
+
+@auth.route('/login', methods=['POST'])
+def login():
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+    user = db.session.execute(db.select(User).where(User.username == username)).scalar()
+    if user is None or not user.check_password(password):
+        return jsonify({"error": "Invalid username or password"}), 401
+    # Generate and set CSRF token after successful login
+    # csrf_token = generate_csrf()
+    access_token = create_access_token(identity=str(user.id), additional_claims={"role": user.role})
+    response = jsonify({"message": "Login successful", "user_id": user.id})
+    set_access_cookies(response, access_token)
+    # response.headers['X-CSRF-Token'] = csrf_token
+    return response, 200
+
+
+@auth.route('/logout', methods=['POST'])
+@jwt_required()
+def logout():
+    return jsonify({"message": "Successfully logged out"}), 200
+
+
+# TODO: we might have to refactor this so that the user routes are in a separate file
+
+
+# Protect a route with jwt_required, which will kick out requests
+# without a valid JWT present.
+@auth.route("/protected", methods=["GET"])
+@jwt_required()
+@admin_required()
+def protected():
+    # Access the identity of the current user with get_jwt_identity
+    current_user = get_jwt_identity()
+    return jsonify(logged_in_as=current_user), 200
+
+
+@auth.route('/get-csrf-token', methods=['GET'])
+@jwt_required()
+def get_csrf_token():
+    token = generate_csrf()
+    response = jsonify({'msg': 'CSRF token generated'})
+    response.headers['X-CSRF-Token'] = token
+    return response

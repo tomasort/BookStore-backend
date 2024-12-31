@@ -1,6 +1,7 @@
 from app import ma
 from app.orders.models import Order, OrderItem
 from app.auth.models import User
+from app.promotions.models import Promotions
 from marshmallow import fields  # Use marshmallow's fields module
 
 

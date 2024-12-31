@@ -11,26 +11,30 @@ class BaseConfig:
     TESTING = False
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        'DATABASE_URL', f'sqlite:///{BASE_DIR}/db.sqlite3')
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', f'sqlite:///{BASE_DIR}/db.sqlite3')
 
     # NOTE: use secrets.token_hex(32) to generate a key (real one is in .env)
-    SECRET_KEY = os.environ.get(
-        'SECRET_KEY', 'f64ac936a2d9b7370c6b55b727f92c18')
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'f64ac936a2d9b7370c6b55b727f92c18')
+    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'f64ac936a2d9b7370c6b55b727f92c18')
+    JWT_TOKEN_LOCATION = ['cookies']
+    JWT_COOKIE_SECURE = False
+    JWT_COOKIE_CSRF_PROTECT = True
+    JWT_ACCESS_TOKEN_EXPIRES = 3600
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 
 class DevelopmentConfig(BaseConfig):
     """Development configuration"""
     DEBUG = True
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        'DATABASE_URL', f'sqlite:///{BASE_DIR}/dev_db.sqlite3')
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', f'sqlite:///{BASE_DIR}/dev_db.sqlite3')
 
 
 class ProductionConfig(BaseConfig):
     """Production configuration"""
     # TODO: set SQLALCHEMY_DATABASE_URI to a postgresql database
     DEBUG = False
+    JWT_COOKIE_SECURE = True
+    JWT_COOKIE_CSRF_PROTECT = True
 
 
 class TestingConfig(BaseConfig):

@@ -1,4 +1,5 @@
 from typing import Optional
+from datetime import datetime
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.ext.mutable import MutableList
 import sqlalchemy as sa
@@ -116,7 +117,6 @@ class Book(BaseModel):
     subtitle: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     discounts: so.Mapped[Optional[list["Discount"]]] = so.relationship("Discount", back_populates="book")
 
-
     # Define the relationships
     providers: so.Mapped[list["Provider"]] = so.relationship(
         "Provider", secondary=book_providers, back_populates="books", passive_deletes=True
@@ -136,6 +136,7 @@ class Book(BaseModel):
     series: so.Mapped[list["Series"]] = so.relationship(
         "Series", secondary=book_series, back_populates="books", passive_deletes=True
     )
+    reviews: so.Mapped[list["Review"]] = so.relationship("Review", back_populates="book")
 
     def __repr__(self) -> str:
         return f"<Book(id={self.id}, title='{self.title}', isbn10='{self.isbn_10}', isbn13='{self.isbn_13}')>"
@@ -221,6 +222,7 @@ class FeaturedBook(BaseModel):
     def __repr__(self) -> str:
         return f"<FeaturedBook(id={self.id}, book_id={self.book_id}, priority={self.priority})>"
 
+
 class Discount(BaseModel):
     id: so.Mapped[int] = so.mapped_column(primary_key=True, autoincrement=True)
     book_id: so.Mapped[Optional[int]] = so.mapped_column(sa.ForeignKey("book.id", ondelete="CASCADE"), nullable=True)
@@ -231,3 +233,22 @@ class Discount(BaseModel):
 
     # Relationship to Book
     book: so.Mapped["Book"] = so.relationship("Book", back_populates="discounts")
+
+    def __repr__(self) -> str:
+        return f"<Discount(id={self.id}, book_id={self.book_id}, percentage={self.percentage}, fixed_amount={self.fixed_amount})>"
+
+
+class Review(db.Model):
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    book_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('book.id'))
+    user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('user.id'))
+    rating: so.Mapped[int] = so.mapped_column(sa.Integer)  # 1-5 stars
+    comment: so.Mapped[Optional[str]] = so.mapped_column(sa.Text)
+    created_at: so.Mapped[datetime] = so.mapped_column(sa.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    book: so.Mapped["Book"] = so.relationship("Book", back_populates="reviews")
+    user: so.Mapped["User"] = so.relationship("User", back_populates="reviews")
+
+    def __repr__(self):
+        return f'<Review {self.id}>'

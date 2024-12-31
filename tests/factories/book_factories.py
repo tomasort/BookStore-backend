@@ -173,7 +173,7 @@ class FeaturedBookFactory(factory.alchemy.SQLAlchemyModelFactory):
         sqlalchemy_session = db.session
         sqlalchemy_session_persistence = "commit"
 
-    featured_date = factory.Faker('date_object')  # Random date for featured date
-    expiry_date = factory.LazyAttribute(lambda o: o.featured_date.replace(year=o.featured_date.year + 1))
+    featured_date = factory.Faker('past_date')
+    expiry_date = factory.Faker('future_date')
     priority = factory.Faker('random_int', min=1, max=5)
     book = factory.SubFactory(BookFactory)  # Reference an existing BookFactory
