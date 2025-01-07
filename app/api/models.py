@@ -116,6 +116,7 @@ class Book(BaseModel):
     edition_name: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     subtitle: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     discounts: so.Mapped[Optional[list["Discount"]]] = so.relationship("Discount", back_populates="book")
+    rating: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(1, 2))
 
     # Define the relationships
     providers: so.Mapped[list["Provider"]] = so.relationship(

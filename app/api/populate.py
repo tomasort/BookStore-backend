@@ -316,8 +316,9 @@ commit = True
 @click.option('--authors_path', help='CSV file to read author data from')
 @click.option('--providers_path', help='CSV file to read providers data from')
 @click.option('--batch_size', help='Size of the batch to commit to the database', default=50)
+@click.option('--limit', help='limit of books to add to the database', default=100)
 @with_appcontext
-def populate(books_path, authors_path, providers_path, batch_size):
+def populate(books_path, authors_path, providers_path, batch_size, limit):
     logger = current_app.logger
     logger.info("Populating database with data from CSV files")
     logger.info("Books path: %s", books_path)
@@ -331,6 +332,8 @@ def populate(books_path, authors_path, providers_path, batch_size):
     authors_df = deserialize_columns(authors_df, authors_list_fields)
     provider_df = pd.read_csv(providers_path, sep='\t')
     session = db.session
+    if limit:
+        books_df = books_df.sample(limit)
     try:
         for index, row in books_df.iterrows():
             logger.info("Processing book %d", index)

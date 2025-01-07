@@ -1,3 +1,5 @@
+from sqlalchemy import or_
+from flask import request, jsonify
 from flask import current_app, render_template, request, jsonify, Request
 from datetime import datetime
 from flask_login import login_required
@@ -5,12 +7,15 @@ from app import db
 from app.api.models import Book, Author, Genre, Series
 from app.api.books import books
 from app.api.schemas import BookSchema, AuthorSchema, GenreSchema, SeriesSchema
+from app.orders.models import OrderItem
+from sqlalchemy import func
 
 book_schema = BookSchema()
 
 # TODO: use longin required for create, update, delete routes
 
 
+# TODO: let the user add a book with authors. The author should already be created and the user should provide the author's ID
 @books.route("", methods=["POST"])
 def create_book():
     data = request.json
@@ -51,10 +56,31 @@ def update_book(book_id):
 
 @books.route("", methods=["GET"])
 def get_books():
-    # TODO: implement query parameters for page, limit, author, genre, language, publisher, series, search, sort
-    # TODO: implement pagination
-    books = db.session.execute(db.select(Book)).scalars()
-    return jsonify([book.to_dict() for book in books])
+    # Extract query parameters
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("limit", 10, type=int)
+
+    # Create pagination object
+    pagination = db.paginate(
+        db.select(Book),
+        page=page,
+        per_page=per_page,
+        max_per_page=100,  # Optional: limit maximum items per page
+        error_out=False    # Don't raise 404 when page is out of range
+    )
+
+    # Return JSON response with pagination information
+    return jsonify({
+        "books": [book_schema.dump(book) for book in pagination.items],
+        "pagination": {
+            "page": pagination.page,
+            "per_page": pagination.per_page,
+            "total": pagination.total,
+            "pages": pagination.pages,
+            "has_next": pagination.has_next,
+            "has_prev": pagination.has_prev
+        }
+    })
 
 
 @books.route("/<int:book_id>", methods=["GET"])
@@ -78,34 +104,54 @@ def delete_book(book_id):
 
 @books.route('/search', methods=['GET'])
 def search_books():
-    """Search for books by title, ISBN, author, etc."""
+    """Search for books by title, ISBN, author, etc., with pagination."""
     # Get search parameters from the query string
     title = request.args.get('title', type=str)
     isbn = request.args.get('isbn', type=str)
     author_name = request.args.get('author', type=str)
-    page = request.args.get('page', type=int, default=1)
     keyword = request.args.get('keyword', type=str)
-    limit = request.args.get('limit', type=int, default=10)
-    query = db.session.query(Book)
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 10, type=int)
+
+    # Build the query
+    query = db.select(Book)
     if title:
         query = query.filter(Book.title.ilike(f'%{title}%'))
     if isbn:
         query = query.filter((Book.isbn_10 == isbn) | (Book.isbn_13 == isbn))
     if author_name:
-        query = query.join(Author).filter(
-            Author.name.ilike(f'%{author_name}%'))
+        query = query.join(Book.authors).filter(Author.name.ilike(f'%{author_name}%'))
     if keyword:
-        query = query.filter(
-            (Book.title.ilike(f'%{keyword}%')) | (Book.description.ilike(f'%{keyword}%')) | Author.name.ilike(f'%{keyword}%'))
-    num_pages = query.count() // limit
-    books = query.offset((page - 1) * limit).limit(limit).all()
-    # serialize the results
-    results = []
-    for book in books:
-        results.append(book.to_dict())
-    if not books:
+        query = query.join(Book.authors).filter(
+            (Book.title.ilike(f'%{keyword}%')) |
+            (Book.description.ilike(f'%{keyword}%')) |
+            (Author.name.ilike(f'%{keyword}%'))
+        )
+
+    # Create pagination object
+    pagination = db.paginate(
+        query,
+        page=page,
+        per_page=limit,
+        max_per_page=100,  # Optional: limit maximum items per page
+        error_out=False    # Don't raise 404 when page is out of range
+    )
+
+    # Return JSON response with pagination information
+    if not pagination.items:
         return jsonify({"message": "No books found matching the search criteria"}), 404
-    return jsonify({"books": results, "pages": num_pages, "current_page": page}), 200
+
+    return jsonify({
+        "books": [book.to_dict() for book in pagination.items],
+        "pagination": {
+            "page": pagination.page,
+            "per_page": pagination.per_page,
+            "total": pagination.total,
+            "pages": pagination.pages,
+            "has_next": pagination.has_next,
+            "has_prev": pagination.has_prev
+        }
+    })
 
 
 @books.route('/<int:book_id>/authors', methods=['PUT'])
@@ -219,3 +265,13 @@ def remove_series_from_book(book_id, series_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
+
+
+@books.route('/popular', methods=['GET'])
+def get_popular_books():
+    """Get the most popular books"""
+    # Get the top 10 most popular books
+    popular_books = db.session.query(Book).join(OrderItem).group_by(OrderItem.book_id).order_by(func.count(OrderItem.book_id).desc()).limit(10).all()
+    if not popular_books:
+        return jsonify({"message": "No popular books found"}), 404
+    return jsonify([book.to_dict() for book in popular_books]), 200

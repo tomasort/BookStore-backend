@@ -10,9 +10,8 @@ from urllib.parse import quote
 
 
 def test_create_simple_book(client, book_factory):
-    book_factory.create_batch(3)
-    book = book_factory.build()
-    book_schema = BookSchema(exclude=["id"])
+    book = book_factory.build(authors=[])
+    book_schema = BookSchema(exclude=["id", "authors"])
     # Send a POST request to create a new book
     response = client.post(
         "/api/books",
@@ -28,18 +27,20 @@ def test_create_simple_book(client, book_factory):
         Book.id == response_data["book_id"])).scalar() is not None
 
 
-@pytest.mark.parametrize("num_books", [1, 3, 10, 20])
-def test_get_books(client, book_factory, num_books):
+@pytest.mark.parametrize("num_books, limit, page", [(20, 5, 1), (20, 5, 2), (10, 10, 1), (10, 5, 3)])
+def test_get_books_pagination(client, book_factory, num_books, limit, page, cleanup_db):
     # Create a batch of books
-    books = book_factory.create_batch(num_books)
-    # Send a GET request to retrieve all books
-    response = client.get("/api/books")
+    book_factory.create_batch(num_books)
+    print(db.session.execute(select(func.count(Book.id))).scalar())
+    # Send a GET request with pagination parameters
+    response = client.get(f"/api/books?limit={limit}&page={page}")
     assert response.status_code == 200
     data = response.get_json()
-    assert isinstance(data, list)
-    created_book_titles = {book.title for book in books}
-    response_book_titles = {book["title"] for book in data}
-    assert created_book_titles.issubset(response_book_titles)
+    assert "books" in data
+    pagination = data["pagination"]
+    assert pagination["pages"] == (num_books // limit) + (num_books % limit > 0)
+    assert isinstance(data["books"], list)
+    assert len(data["books"]) == min(limit, num_books - (page - 1) * limit)  # Ensure pagination works as expected
 
 
 @pytest.mark.parametrize("num_books", [1, 10, 20])
@@ -91,8 +92,6 @@ def test_delete_book(client, book_factory, num_books):
     assert remaining_book_ids.issubset(db_book_ids)
 
 
-# TODO: add test for multiple search results
-# TODO: add test for multiple pages
 @pytest.mark.parametrize("num_books", [1, 10, 20])
 def test_search_books_by_title_single_result(client, book_factory, num_books):
     books = book_factory.create_batch(num_books)
@@ -130,6 +129,28 @@ def test_search_books_by_isbn_single_result(client, book_factory, num_books):
         (book["isbn_10"] == searched_book.isbn_10
             and book["isbn_13"] == searched_book.isbn_13
          ) for book in response_books)
+
+
+def test_search_books_query(client, book_factory, author_factory):
+    # Create a batch of books
+    book_with_title = book_factory.create(title="The Great Gatsby")
+    book_with_description = book_factory.create(description="A tale of great love and loss")
+    book_with_author = book_factory.create()
+    author = author_factory.create(name="The Great Author")
+    book_with_author.authors.append(author)
+    search_response = client.get(
+        f"/api/books/search?keyword={quote('great')}")
+    assert search_response.status_code == 200
+    # Verify the search results are both books
+    data = search_response.get_json()
+    if 'books' not in data:
+        assert False
+    response_books = data['books']
+    assert isinstance(response_books, list)
+    book_ids = {book["id"] for book in response_books}
+    assert book_with_title.id in book_ids
+    assert book_with_description.id in book_ids
+    assert book_with_author.id in book_ids
 
 
 @pytest.mark.parametrize("num_books", [1, 20])
@@ -214,3 +235,8 @@ def test_remove_series_from_book(client, book_factory, series_factory, num_serie
     assert remove_series_response.status_code == 200
     assert series_to_remove not in book.series
     assert len(book.series) == num_series - 1
+
+
+# def test_get_popular_books(client, book_factory, ):
+#     book = book_factory.create()
+#     assert False

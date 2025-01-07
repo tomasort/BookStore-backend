@@ -46,13 +46,10 @@ def test_add_authors_to_book(client, book_factory, author_factory, num_authors):
         assert author in book.authors
 
 
-@pytest.mark.parametrize("num_authors", [1, 3, 10])
-def test_remove_authors_from_book(client, book_factory, author_factory, num_authors):
+def test_remove_authors_from_book(client, book_factory):
     book = book_factory.create()
-    authors = author_factory.create_batch(num_authors)
-    assert len(book.authors) == 0
-    book.authors.extend(authors)
-    assert len(book.authors) == num_authors
+    authors = book.authors
+    num_authors = len(authors)
     author_to_delete = choice(authors)
     # Send a DELETE request to remove the authors from the book
     remove_authors_response = client.delete(
