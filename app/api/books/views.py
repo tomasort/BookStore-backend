@@ -69,9 +69,11 @@ def get_books():
         error_out=False    # Don't raise 404 when page is out of range
     )
 
+    simple_book_schema = BookSchema(only=["id", "title", "subtitle", "isbn_10", "isbn_13", "authors", "series", "genres", "publishers", "current_price", "previous_price", "cover_url", "rating"])
+
     # Return JSON response with pagination information
     return jsonify({
-        "books": [book_schema.dump(book) for book in pagination.items],
+        "books": [simple_book_schema.dump(book) for book in pagination.items],
         "pagination": {
             "page": pagination.page,
             "per_page": pagination.per_page,

@@ -88,6 +88,7 @@ class Author(BaseModel):
 class Book(BaseModel):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     title: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    subtitle: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     isbn_10: so.Mapped[Optional[str]] = so.mapped_column(sa.String, unique=True, index=True)
     isbn_13: so.Mapped[Optional[str]] = so.mapped_column(sa.String, unique=True, index=True)
     publish_date: so.Mapped[Optional[sa.Date]] = so.mapped_column(sa.Date)
@@ -114,7 +115,6 @@ class Book(BaseModel):
     weight: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     publish_places: so.Mapped[Optional[list[str]]] = so.mapped_column(MutableList.as_mutable(sa.JSON))
     edition_name: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
-    subtitle: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     discounts: so.Mapped[Optional[list["Discount"]]] = so.relationship("Discount", back_populates="book")
     rating: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(1, 2))
 
