@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 9c49f9ddd43d
+Revision ID: bb153e73a3e7
 Revises: 
-Create Date: 2024-12-29 21:11:25.521852
+Create Date: 2025-01-14 21:19:08.065726
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '9c49f9ddd43d'
+revision = 'bb153e73a3e7'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -35,6 +35,7 @@ def upgrade():
     op.create_table('book',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('title', sa.String(), nullable=False),
+    sa.Column('subtitle', sa.String(), nullable=True),
     sa.Column('isbn_10', sa.String(), nullable=True),
     sa.Column('isbn_13', sa.String(), nullable=True),
     sa.Column('publish_date', sa.Date(), nullable=True),
@@ -61,13 +62,19 @@ def upgrade():
     sa.Column('weight', sa.String(), nullable=True),
     sa.Column('publish_places', sa.JSON(), nullable=True),
     sa.Column('edition_name', sa.String(), nullable=True),
-    sa.Column('subtitle', sa.String(), nullable=True),
+    sa.Column('rating', sa.Numeric(precision=1, scale=2), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('book', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_book_isbn_10'), ['isbn_10'], unique=True)
         batch_op.create_index(batch_op.f('ix_book_isbn_13'), ['isbn_13'], unique=True)
 
+    op.create_table('exchange_rate',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('rate', sa.Float(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('genre',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(), nullable=False),
@@ -76,6 +83,20 @@ def upgrade():
     op.create_table('language',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('promotions',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(length=100), nullable=False),
+    sa.Column('description', sa.String(length=200), nullable=True),
+    sa.Column('start_date', sa.DateTime(), nullable=False),
+    sa.Column('end_date', sa.DateTime(), nullable=False),
+    sa.Column('conditions', sa.JSON(), nullable=True),
+    sa.Column('discount_value', sa.Numeric(precision=10, scale=2), nullable=False),
+    sa.Column('active', sa.Boolean(), nullable=False),
+    sa.Column('discount_type', sa.String(length=20), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('provider',
@@ -110,22 +131,26 @@ def upgrade():
     sa.Column('username', sa.String(length=64), nullable=False),
     sa.Column('email', sa.String(length=120), nullable=False),
     sa.Column('password_hash', sa.String(length=256), nullable=True),
-    sa.Column('active', sa.Boolean(), nullable=False),
-    sa.Column('role', sa.String(length=20), nullable=True),
+    sa.Column('session_token', sa.String(length=256), nullable=True),
     sa.Column('first_name', sa.String(length=64), nullable=True),
     sa.Column('last_name', sa.String(length=64), nullable=True),
     sa.Column('phone_number', sa.String(length=20), nullable=True),
     sa.Column('date_of_birth', sa.DateTime(), nullable=True),
+    sa.Column('id_number', sa.String(length=20), nullable=True),
+    sa.Column('id_type', sa.String(length=20), nullable=True),
     sa.Column('shipping_address', sa.String(length=200), nullable=True),
     sa.Column('shipping_city', sa.String(length=100), nullable=True),
     sa.Column('shipping_state', sa.String(length=100), nullable=True),
     sa.Column('shipping_country', sa.String(length=100), nullable=True),
     sa.Column('shipping_postal_code', sa.String(length=20), nullable=True),
-    sa.Column('preferred_language', sa.String(length=10), nullable=True),
-    sa.Column('newsletter_subscription', sa.Boolean(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('last_login', sa.DateTime(), nullable=True),
+    sa.Column('preferred_language', sa.String(length=10), nullable=True),
+    sa.Column('active', sa.Boolean(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('role', sa.String(length=20), nullable=True),
     sa.Column('account_type', sa.String(length=20), nullable=False),
+    sa.Column('status', sa.String(length=20), nullable=True),
+    sa.Column('newsletter_subscription', sa.Boolean(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('user', schema=None) as batch_op:
@@ -174,6 +199,15 @@ def upgrade():
     sa.ForeignKeyConstraint(['series_id'], ['series.id'], ),
     sa.PrimaryKeyConstraint('book_id', 'series_id')
     )
+    op.create_table('cart',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('user_id')
+    )
     op.create_table('discount',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('book_id', sa.Integer(), nullable=True),
@@ -194,17 +228,15 @@ def upgrade():
     op.create_table('featured_book',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('book_id', sa.Integer(), nullable=False),
-    sa.Column('featured_date', sa.Date(), nullable=True),
     sa.Column('expiry_date', sa.Date(), nullable=True),
     sa.Column('priority', sa.Integer(), nullable=True),
+    sa.Column('featured_date', sa.Date(), nullable=True),
     sa.ForeignKeyConstraint(['book_id'], ['book.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('order',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('date', sa.DateTime(), nullable=False),
     sa.Column('total', sa.Numeric(precision=10, scale=2), nullable=False),
-    sa.Column('status', sa.String(), nullable=False),
     sa.Column('tracking_number', sa.String(length=50), nullable=True),
     sa.Column('shipping_address', sa.String(length=200), nullable=True),
     sa.Column('shipping_city', sa.String(length=100), nullable=True),
@@ -217,6 +249,9 @@ def upgrade():
     sa.Column('billing_country', sa.String(length=100), nullable=True),
     sa.Column('billing_postal_code', sa.String(length=20), nullable=True),
     sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('tax', sa.Numeric(precision=10, scale=2), nullable=False),
+    sa.Column('status', sa.String(), nullable=False),
+    sa.Column('date', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -231,12 +266,28 @@ def upgrade():
     sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_table('user_promotions',
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('promotion_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['promotion_id'], ['promotions.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
+    sa.PrimaryKeyConstraint('user_id', 'promotion_id')
+    )
     op.create_table('wishlist_books',
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('book_id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['book_id'], ['book.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
     sa.PrimaryKeyConstraint('user_id', 'book_id')
+    )
+    op.create_table('cart_item',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('cart_id', sa.Integer(), nullable=False),
+    sa.Column('book_id', sa.Integer(), nullable=False),
+    sa.Column('quantity', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['book_id'], ['book.id'], ),
+    sa.ForeignKeyConstraint(['cart_id'], ['cart.id'], ),
+    sa.PrimaryKeyConstraint('id')
     )
     op.create_table('order_item',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -254,12 +305,15 @@ def upgrade():
 def downgrade():
     # ### commands auto generated by Alembic - please adjust! ###
     op.drop_table('order_item')
+    op.drop_table('cart_item')
     op.drop_table('wishlist_books')
+    op.drop_table('user_promotions')
     op.drop_table('review')
     op.drop_table('order')
     op.drop_table('featured_book')
     op.drop_table('favorite_books')
     op.drop_table('discount')
+    op.drop_table('cart')
     op.drop_table('book_series')
     op.drop_table('book_publishers')
     op.drop_table('book_providers')
@@ -274,8 +328,10 @@ def downgrade():
     op.drop_table('series')
     op.drop_table('publisher')
     op.drop_table('provider')
+    op.drop_table('promotions')
     op.drop_table('language')
     op.drop_table('genre')
+    op.drop_table('exchange_rate')
     with op.batch_alter_table('book', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_book_isbn_13'))
         batch_op.drop_index(batch_op.f('ix_book_isbn_10'))

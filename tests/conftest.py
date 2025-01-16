@@ -14,6 +14,8 @@ from tests.factories import (
     OrderFactory,
     OrderItemFactory,
     UserFactory,
+    CartFactory,
+    CartItemFactory,
 )
 from pytest_factoryboy import register
 
@@ -30,6 +32,9 @@ register(OrderFactory)
 register(OrderItemFactory)
 
 register(UserFactory)
+
+register(CartFactory)
+register(CartItemFactory)
 
 
 @pytest.fixture(scope="session")

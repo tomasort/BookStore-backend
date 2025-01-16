@@ -1,12 +1,13 @@
 from app.auth import auth
+from flask import session
 from app import db, admin_required
-from app.auth.models import User
-from app.auth.schemas import UserSchema
-from app.api.models import Book
 from flask import request, jsonify
 from sqlalchemy.exc import IntegrityError
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, set_access_cookies
 from flask_wtf.csrf import generate_csrf
+from app.models import Book
+from app.models import User
+from app.schemas import UserSchema
 
 
 user_schema = UserSchema()
@@ -71,10 +72,14 @@ def get_users():
 
 
 @auth.route('/users/<int:user_id>', methods=['GET'])
+@jwt_required()
 def get_user(user_id):
+    current_user = int(get_jwt_identity())
+    if user_id != current_user:
+        return jsonify({"error": "You can't access this user's information!"}), 403
     user = db.session.execute(db.select(User).where(User.id == user_id)).scalar()
     if user is None:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": "User not found"}), 405
 
     serialized_user = user_schema.dump(user)
     return jsonify(serialized_user)
@@ -162,7 +167,12 @@ def login():
 @auth.route('/logout', methods=['POST'])
 @jwt_required()
 def logout():
-    return jsonify({"message": "Successfully logged out"}), 200
+    # Expire/remove the JWT cookies
+    response = jsonify({"message": "Successfully logged out"})
+    response.set_cookie('access_token_cookie', '', expires=0)
+    response.set_cookie('csrf_access_token', '', expires=0)
+    session.clear()
+    return response, 200
 
 
 # TODO: we might have to refactor this so that the user routes are in a separate file

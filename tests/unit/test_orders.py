@@ -1,7 +1,7 @@
 import json
 from sqlalchemy import select, func
-from app.orders.schemas import OrderSchema, OrderItemSchema
-from app.orders.models import Order, OrderItem
+from app.schemas import OrderSchema, OrderItemSchema
+from app.models import Order, OrderItem
 from app import db
 import pytest
 

@@ -1,6 +1,6 @@
 from flask import request, jsonify
 from app import db
-from app.api.models import Series
+from app.models import Series
 from app.api.series import series
 
 

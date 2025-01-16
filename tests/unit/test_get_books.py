@@ -4,8 +4,8 @@ from faker import Faker
 from random import choice
 import pytest
 from app import db
-from app.api.models import Book
-from app.api.schemas import BookSchema
+from app.models import Book
+from app.schemas import BookSchema
 from sqlalchemy import select, func
 from urllib.parse import quote
 

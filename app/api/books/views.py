@@ -4,10 +4,10 @@ from flask import current_app, render_template, request, jsonify, Request
 from datetime import datetime
 from flask_login import login_required
 from app import db
-from app.api.models import Book, Author, Genre, Series
+from app.models import Book, Author, Genre, Series
 from app.api.books import books
-from app.api.schemas import BookSchema, AuthorSchema, GenreSchema, SeriesSchema
-from app.orders.models import OrderItem
+from app.schemas import BookSchema
+from app.models import OrderItem
 from sqlalchemy import func
 
 book_schema = BookSchema()
@@ -41,7 +41,7 @@ def update_book(book_id):
         return jsonify({"error": "No data provided"}), 400
     try:
         # Update fields based on incoming data
-        for key, value in book.to_dict().items():
+        for key, value in book_schema.dump(book).items():
             if "date" in key:
                 setattr(book, key, datetime.strptime(
                     data.get(key, value), "%Y-%m-%d").date())
@@ -144,7 +144,7 @@ def search_books():
         return jsonify({"message": "No books found matching the search criteria"}), 404
 
     return jsonify({
-        "books": [book.to_dict() for book in pagination.items],
+        "books": [book_schema.dump(book) for book in pagination.items],
         "pagination": {
             "page": pagination.page,
             "per_page": pagination.per_page,

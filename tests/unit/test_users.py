@@ -5,9 +5,9 @@ from faker import Faker
 from random import choice
 import pytest
 from app import db
-from app.api.models import Book
-from app.api.schemas import BookSchema
-from app.auth.schemas import UserSchema
+from app.models import Book
+from app.schemas import BookSchema
+from app.schemas import UserSchema
 from sqlalchemy import select, func
 from urllib.parse import quote
 
@@ -98,21 +98,22 @@ def test_get_users(client, user_factory, admin_token):
     assert created_user_ids.issubset(response_user_ids)
 
 
-def test_get_user(client, user_factory):
-    user = user_factory.create()
-    response = client.get(f"/auth/users/{user.id}")
+def test_get_user(client, regular_user, user_token):
+    client.set_cookie("access_token_cookie", user_token)
+    response = client.get(f"/auth/users/{regular_user.id}")
     assert response.status_code == 200
     data = response.get_json()
-    assert data["id"] == user.id
-    assert data["username"] == user.username
-    assert data["email"] == user.email
+    assert data["id"] == regular_user.id
+    assert data["username"] == regular_user.username
+    assert data["email"] == regular_user.email
 
 
-def test_get_user_not_found(client):
-    response = client.get("/auth/users/1000")
-    assert response.status_code == 404
-    data = response.get_json()
-    assert data["error"] == "User not found"
+# NOTE: this test is no longer needed since right now other users can't see other users' details if they are not logged in
+# def test_get_user_not_found(client):
+#     response = client.get("/auth/users/1000")
+#     assert response.status_code == 404
+#     data = response.get_json()
+#     assert data["error"] == "User not found"
 
 
 def test_login(client, user_factory):

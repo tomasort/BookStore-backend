@@ -1,9 +1,12 @@
 import json
-from app.api.models import Publisher
+from app.models import Publisher
+from app.schemas import PublisherSchema
 from sqlalchemy import select, func
 from app import db
 from random import choice
 import pytest
+
+publisher_schema = PublisherSchema()
 
 
 def test_create_publisher(client, publisher_factory):
@@ -11,7 +14,7 @@ def test_create_publisher(client, publisher_factory):
     publisher = publisher_factory.build()
     response = client.post(
         '/api/publishers',
-        data=json.dumps(publisher.to_dict()),
+        data=json.dumps(publisher_schema.dump(publisher)),
         content_type='application/json'
     )
     data = response.get_json()

@@ -1,9 +1,9 @@
 from sqlalchemy import select
 from flask import request, jsonify
 from app.orders import orders
-from app.orders.models import Order, OrderItem
-from app.orders.schemas import OrderSchema, OrderItemSchema
-from app.auth.models import User
+from app.models import Order, OrderItem
+from app.models import User
+from app.schemas import OrderSchema, OrderItemSchema
 from app import db
 
 order_schema = OrderSchema()

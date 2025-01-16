@@ -1,6 +1,6 @@
 import factory
 from datetime import datetime, timezone
-from app.promotions.models import Promotions
+from app.models import Promotions
 import random
 from app import db
 

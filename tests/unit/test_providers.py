@@ -2,8 +2,8 @@ import json
 from random import choice
 import pytest
 from app import db
-from app.api.models import Provider
-from app.api.schemas import ProviderSchema
+from app.models import Provider
+from app.schemas import ProviderSchema
 from sqlalchemy import select, func
 from urllib.parse import quote
 

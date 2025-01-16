@@ -1,8 +1,8 @@
 from flask import jsonify, request
 from datetime import datetime
 from app import db
-from app.api.models import FeaturedBook, Book
-from app.api.schemas import FeaturedBookSchema
+from app.models import FeaturedBook, Book
+from app.schemas import FeaturedBookSchema
 from app.api.featured_books import featured_books
 
 featured_book_schema = FeaturedBookSchema()

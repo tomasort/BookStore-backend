@@ -3,8 +3,11 @@ import pytest
 from app import db
 from random import choice
 from urllib.parse import quote
-from app.api.models import Series
+from app.models import Series
 from sqlalchemy import select, func
+from app.schemas import SeriesSchema
+
+series_schema = SeriesSchema()
 
 
 @pytest.mark.parametrize("num_series", [1, 3, 10, 20])
@@ -15,7 +18,7 @@ def test_create_series(client, series_factory, num_series):
         # Create a new series
         response = client.post(
             '/api/series',
-            data=json.dumps(s.to_dict()),
+            data=json.dumps(series_schema.dump(s)),
             content_type='application/json'
         )
         data = response.get_json()

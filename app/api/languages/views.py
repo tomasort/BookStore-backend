@@ -1,6 +1,6 @@
 from flask import current_app, render_template, request, jsonify, Request
 from app import db
-from app.api.models import Language
+from app.models import Language
 from app.api.languages import languages
 
 # ----------- LANGUAGE ROUTES ----------- #

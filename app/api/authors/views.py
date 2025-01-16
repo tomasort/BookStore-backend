@@ -1,8 +1,8 @@
 from flask import current_app, render_template, request, jsonify, Request
 from datetime import datetime
-from app.api.authors import authors
 from app import db
-from app.api.models import Author
+from app.api.authors import authors
+from app.models import Author
 
 
 # # ----------- AUTHOR ROUTES -----------

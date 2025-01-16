@@ -11,6 +11,12 @@ import logging
 from flask_login import LoginManager
 from flask_jwt_extended import JWTManager, get_jwt, verify_jwt_in_request
 from flask_wtf.csrf import CSRFProtect
+from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass
+
+
+class Base(DeclarativeBase, MappedAsDataclass):
+    pass
+
 
 # instantiate the extensions
 db = SQLAlchemy()
@@ -65,6 +71,9 @@ def create_app(config_name: str | None = None) -> Flask:
 
     from app.promotions import promotions
     app.register_blueprint(promotions)
+
+    from app.cart import cart
+    app.register_blueprint(cart)
 
     # set up logging
     setup_logging(app)

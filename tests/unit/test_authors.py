@@ -1,24 +1,26 @@
 import json
 from random import choice, sample, randint
 from app import db
-from app.api.models import Author
+from app.models import Author
+from app.schemas import AuthorSchema
 from sqlalchemy import select, func
 import pytest
+
+author_schema = AuthorSchema()
 
 
 def test_create_author(client, author_factory):
     author = author_factory.build()
     response = client.post(
         "/api/authors",
-        data=json.dumps(author.to_dict()),
+        data=json.dumps(author_schema.dump(author)),
         content_type="application/json"
     )
     assert response.status_code == 201
     data = response.get_json()
     if "author_id" not in data:
         assert False
-    book_in_db = db.session.execute(select(Author).where(
-        Author.id == data["author_id"])).scalar()
+    book_in_db = db.session.execute(select(Author).where(Author.id == data["author_id"])).scalar()
     if book_in_db is None:
         assert False
     assert data["author_id"] == book_in_db.id

@@ -1,6 +1,6 @@
 # cli utilities for dealing with users
 from flask.cli import with_appcontext
-from app.auth.models import User
+from app.models import User
 from app.auth import auth
 import click
 from app import db

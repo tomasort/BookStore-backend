@@ -1,7 +1,7 @@
 from flask import jsonify, request
 from app import db
 from app.api.genres import genres
-from app.api.models import Genre
+from app.models import Genre
 
 
 @genres.route('', methods=['POST'])

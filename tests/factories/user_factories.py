@@ -1,5 +1,5 @@
 import factory
-from app.auth.models import User
+from app.models import User
 from tests.factories.book_factories import BookFactory
 from app import db
 import random

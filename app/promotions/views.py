@@ -1,9 +1,9 @@
 from flask import current_app, render_template, request, jsonify, Request
 from datetime import datetime
 from app import db
-from app.promotions.models import Promotions
 from app.promotions import promotions
-from app.promotions.schemas import PromotionsSchema
+from app.schemas import PromotionsSchema
+from app.models import Promotions
 
 
 promotions_schema = PromotionsSchema()

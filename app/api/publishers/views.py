@@ -1,6 +1,6 @@
 from flask import request, jsonify
 from app import db
-from app.api.models import Publisher
+from app.models import Publisher
 from app.api.publishers import publishers
 
 

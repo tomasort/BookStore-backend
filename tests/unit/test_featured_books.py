@@ -6,8 +6,8 @@ import pytest
 from app import db
 from sqlalchemy import select, func
 from urllib.parse import quote
-from app.api.models import FeaturedBook
-from app.api.schemas import FeaturedBookSchema
+from app.models import FeaturedBook
+from app.schemas import FeaturedBookSchema
 
 
 def test_create_featured_book(client, book_factory):

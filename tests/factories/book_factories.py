@@ -1,4 +1,4 @@
-from app.api.models import Author, Book, Publisher, Genre, Language, Series, Provider, FeaturedBook
+from app.models import Author, Book, Publisher, Genre, Language, Series, Provider, FeaturedBook
 import random
 import factory
 from app import db

@@ -1,6 +1,6 @@
 import factory
 from tests.factories.book_factories import BookFactory
-from app.orders.models import Order, OrderItem
+from app.models import Order, OrderItem
 from tests.factories.user_factories import UserFactory
 from app import db
 import random

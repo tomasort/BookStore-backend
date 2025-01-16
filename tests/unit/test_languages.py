@@ -2,15 +2,18 @@ import json
 from sqlalchemy import select, func
 from random import choice
 import pytest
-from app.api.models import Language
+from app.models import Language
+from app.schemas import LanguageSchema
 from app import db
+
+language_schema = LanguageSchema()
 
 
 def test_create_language(client, language_factory):
     language = language_factory.build()
     response = client.post(
         "api/languages",
-        data=json.dumps(language.to_dict()),
+        data=json.dumps(language_schema.dump(language)),
         content_type="application/json",
     )
     assert response.status_code == 201

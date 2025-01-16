@@ -1,7 +1,7 @@
 from flask import request, jsonify
 from app import db
-from app.api.models import Provider
-from app.api.schemas import ProviderSchema
+from app.models import Provider
+from app.schemas import ProviderSchema
 from app.api.providers import providers
 
 provider_schema = ProviderSchema()

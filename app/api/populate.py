@@ -11,8 +11,8 @@ import pandas as pd
 from flask.cli import with_appcontext
 from flask import current_app
 from app import db
-from app.api.models import Book, Author, Genre, Series, Publisher, Language, Provider
-from app.api.schemas import BookSchema, AuthorSchema, GenreSchema, SeriesSchema, PublisherSchema, LanguageSchema, ProviderSchema
+from app.models import Book, Author, Genre, Series, Publisher, Language, Provider
+from app.schemas import BookSchema, AuthorSchema, GenreSchema, SeriesSchema, PublisherSchema, LanguageSchema, ProviderSchema
 from app.api import api
 from typing import List
 import json

@@ -2,8 +2,11 @@ import json
 from random import choice
 import pytest
 from app import db
-from app.api.models import Genre
+from app.models import Genre
+from app.schemas import GenreSchema
 from sqlalchemy import select, func
+
+genre_schema = GenreSchema()
 
 
 @pytest.mark.parametrize("num_genres", [1, 3, 10, 20])
@@ -13,7 +16,7 @@ def test_create_genre(client, genre_factory, num_genres):
     for genre in genres:
         response = client.post(
             '/api/genres',
-            data=json.dumps(genre.to_dict()),
+            data=json.dumps(genre_schema.dump(genre)),
             content_type='application/json'
         )
         data = response.get_json()
