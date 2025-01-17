@@ -13,6 +13,27 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 cart_schema = CartSchema()
 
 
+def get_or_create_cart(db_session, flask_session, user_id):
+    cart = None
+    if user_id is not None:
+        user_id = int(user_id)
+        cart = db_session.query(Cart).filter_by(user_id=user_id).first()
+        if not cart:
+            cart = Cart(user_id=user_id)
+            db_session.add(cart)
+            db_session.commit()
+    else:
+        cart_id = flask_session.get('cart_id')
+        if cart_id:
+            cart = db_session.query(Cart).filter_by(id=cart_id).first()
+        else:
+            cart = Cart()
+            db_session.add(cart)
+            db_session.commit()
+            flask_session['cart_id'] = cart.id
+    return cart
+
+
 @cart.route('', methods=['GET'])
 @jwt_required(optional=True)
 def get_cart():
@@ -47,7 +68,7 @@ def get_cart():
     return jsonify({"message": "Cart not found"}), 404
 
 
-@cart.route('/add', methods=['POST'])
+@cart.route('/add', methods=['PUT'])
 @jwt_required(optional=True)
 def add_to_cart():
     user_id = get_jwt_identity()
@@ -68,23 +89,7 @@ def add_to_cart():
             return jsonify({"message": "Book not found"}), 404
 
         # Retrieve or create the cart
-        cart = None
-        if user_id is not None:
-            user_id = int(user_id)
-            cart = db.session.query(Cart).filter_by(user_id=user_id).first()
-            if not cart:
-                cart = Cart(user_id=user_id)
-                db.session.add(cart)
-                db.session.commit()
-        else:
-            cart_id = session.get('cart_id')
-            if cart_id:
-                cart = db.session.query(Cart).filter_by(id=cart_id).first()
-            else:
-                cart = Cart()
-                db.session.add(cart)
-                db.session.commit()
-                session['cart_id'] = cart.id
+        cart = get_or_create_cart(db.session, session, user_id)
 
         # Check if item is already in the cart
         cart_item = db.session.query(CartItem).filter_by(cart_id=cart.id, book_id=book_id).first()
@@ -101,3 +106,36 @@ def add_to_cart():
     except SQLAlchemyError as e:
         db.session.rollback()
         return jsonify({"message": "An error occurred", "error": str(e)}), 500
+
+
+# @cart.route('update', methods=['PUT'])
+# @jwt_required(optional=True)
+# def update_cart():
+#     user_id = get_jwt_identity()
+#     data = request.get_json()
+
+#     book_id = data.get('book_id')
+#     quantity = data.get('quantity', 0)
+#     try:
+#         # Check if item exists
+#         book = db.session.query(Book).filter_by(id=book_id).first()
+#         if not book:
+#             return jsonify({"message": "Book not found"}), 404
+#         # Retrieve or create the cart
+#         cart = get_or_create_cart(db.session, session, user_id)
+
+#         # Check if item is already in the cart
+#         cart_item = db.session.query(CartItem).filter_by(cart_id=cart.id, book_id=book_id).first()
+#         if cart_item:
+#             cart_item.quantity += quantity  # Update the quantity
+#         else:
+#             cart_item = CartItem(cart_id=cart.id, book=book, quantity=quantity)
+#             db.session.add(cart_item)
+
+#         db.session.commit()
+
+#         return jsonify({"message": "Item added to cart", "cart": cart_schema.dump(cart)}), 200
+
+#     except SQLAlchemyError as e:
+#         db.session.rollback()
+#         return jsonify({"message": "An error occurred", "error": str(e)}), 500

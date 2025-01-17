@@ -28,6 +28,12 @@ class CartItem(db.Model):
     book: so.Mapped['Book'] = so.relationship('Book')
     cart: so.Mapped['Cart'] = so.relationship('Cart', back_populates='items')
     quantity: so.Mapped[int] = so.mapped_column(sa.Integer, nullable=False, default=1)
+    in_stock: so.Mapped[bool] = so.mapped_column(sa.Boolean, default=True)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if 'book' in kwargs:
+            self.in_stock = kwargs['book'].stock > 0
 
     def __repr__(self) -> str:
         return f"<CartItem(id={self.id}, book_id={self.book_id}, quantity={self.quantity})>"

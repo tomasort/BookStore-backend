@@ -165,7 +165,7 @@ def login():
 
 
 @auth.route('/logout', methods=['POST'])
-@jwt_required()
+@jwt_required(optional=True)
 def logout():
     # Expire/remove the JWT cookies
     response = jsonify({"message": "Successfully logged out"})

@@ -20,4 +20,4 @@ api.register_blueprint(languages)
 api.register_blueprint(providers)
 api.register_blueprint(featured_books)
 
-from app.api import models, populate, schemas
+from app.api import populate
