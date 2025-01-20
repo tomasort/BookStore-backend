@@ -15,7 +15,7 @@ class Review(db.Model):
     # Relationships
     book: so.Mapped["Book"] = so.relationship("Book", back_populates="reviews")
     user: so.Mapped["User"] = so.relationship("User", back_populates="reviews")
-    created_at: so.Mapped[datetime] = so.mapped_column(sa.DateTime, default=datetime.utcnow)
+    created_at: so.Mapped[datetime] = so.mapped_column(sa.DateTime, default=sa.func.now())
 
     def __repr__(self):
-        return f'<Review {self.id}>'
+        return f'<Review(id={self.id}, comment={self.comment})>'

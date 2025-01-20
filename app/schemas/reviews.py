@@ -9,5 +9,5 @@ class ReviewSchema(ma.SQLAlchemyAutoSchema):
         include_fk = True
 
     id = ma.auto_field(dump_only=True)
-    book = fields.Nested('BookSchema', exclude=['reviews'])
-    user = fields.Nested('UserSchema', exclude=['reviews'])
+    book = fields.Nested('BookSchema', exclude=['id', 'title'])
+    user = fields.Nested('UserSchema', only=['id', 'username', 'email'])

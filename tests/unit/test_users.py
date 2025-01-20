@@ -108,14 +108,6 @@ def test_get_user(client, regular_user, user_token):
     assert data["email"] == regular_user.email
 
 
-# NOTE: this test is no longer needed since right now other users can't see other users' details if they are not logged in
-# def test_get_user_not_found(client):
-#     response = client.get("/auth/users/1000")
-#     assert response.status_code == 404
-#     data = response.get_json()
-#     assert data["error"] == "User not found"
-
-
 def test_login(client, user_factory):
     fake = Faker()
     password = fake.password()
@@ -239,3 +231,6 @@ def test_get_user_wishlist_no_token(client, user_factory):
     user = user_factory.create()
     response = client.get(f"/auth/users/{user.id}/wishlist")
     assert response.status_code == 401
+
+
+# TODO: Add test for update_user

@@ -333,7 +333,7 @@ def populate(books_path, authors_path, providers_path, batch_size, limit):
     provider_df = pd.read_csv(providers_path, sep='\t')
     session = db.session
     if limit:
-        books_df = books_df.loc[books_df['cover_url'].notna(), :]
+        books_df = books_df.loc[books_df['covers'].notna(), :]
         books_df = books_df.sample(limit)
     try:
         for index, row in books_df.iterrows():

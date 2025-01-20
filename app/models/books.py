@@ -101,7 +101,7 @@ class Book(db.Model):
     publish_places: so.Mapped[Optional[list[str]]] = so.mapped_column(MutableList.as_mutable(sa.JSON))
     edition_name: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     discounts: so.Mapped[Optional[list["Discount"]]] = so.relationship("Discount", back_populates="book")
-    rating: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(1, 2))
+    rating: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(1, 2), default=0)
 
     # Define the relationships
     providers: so.Mapped[list["Provider"]] = so.relationship(

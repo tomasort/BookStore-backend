@@ -19,7 +19,7 @@ class CartFactory(factory.alchemy.SQLAlchemyModelFactory):
     created_at = factory.Faker('date_this_month')
     updated_at = factory.LazyAttribute(lambda o: o.created_at + timedelta(days=randint(1, 30)))
     user = factory.SubFactory(UserFactory)
-    user_id = factory.LazyAttribute(lambda o: o.user.id)
+    user_id = factory.LazyAttribute(lambda o: o.user.id if o.user else None)
 
     @factory.post_generation
     def items(self, create, extracted, **kwargs):

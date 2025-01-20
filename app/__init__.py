@@ -8,7 +8,6 @@ from flask_cors import CORS
 from logging.handlers import RotatingFileHandler
 from app.config import config
 import logging
-from flask_login import LoginManager
 from flask_jwt_extended import JWTManager, get_jwt, verify_jwt_in_request
 from flask_wtf.csrf import CSRFProtect
 from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass
@@ -21,7 +20,6 @@ class Base(DeclarativeBase, MappedAsDataclass):
 # instantiate the extensions
 db = SQLAlchemy()
 migrate = Migrate()
-login = LoginManager()
 cors = CORS()
 ma = Marshmallow()
 jwt = JWTManager()
@@ -53,7 +51,6 @@ def create_app(config_name: str | None = None) -> Flask:
     # set up extensions
     db.init_app(app)
     migrate.init_app(app, db)
-    login.init_app(app)
     cors.init_app(app)
     ma.init_app(app)
     jwt.init_app(app)

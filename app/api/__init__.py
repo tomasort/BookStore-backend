@@ -10,6 +10,7 @@ from app.api.series import series
 from app.api.languages import languages
 from app.api.providers import providers
 from app.api.featured_books import featured_books
+from app.api.reviews import reviews
 
 api.register_blueprint(authors)
 api.register_blueprint(books)
@@ -19,5 +20,6 @@ api.register_blueprint(series)
 api.register_blueprint(languages)
 api.register_blueprint(providers)
 api.register_blueprint(featured_books)
+api.register_blueprint(reviews)
 
 from app.api import populate
