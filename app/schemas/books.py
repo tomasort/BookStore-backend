@@ -18,6 +18,7 @@ class BookSchema(ma.SQLAlchemyAutoSchema):
     cost_supplier = fields.Decimal(as_string=True)
     average_cost_alejandria = fields.Decimal(as_string=True)
     last_cost_alejandria = fields.Decimal(as_string=True)
+    rating = fields.Decimal(as_string=True)
 
     # Relationships
     providers = fields.Nested('ProviderSchema', exclude=['books'], allow_none=True, many=True)

@@ -1,4 +1,5 @@
 import json
+import pdb
 from flask_jwt_extended import create_access_token, get_csrf_token
 from pprint import pprint
 from faker import Faker
@@ -145,10 +146,8 @@ def test_login_required_pages_fail(client, user_token):
 
 def test_delete_user(client, user_factory, admin_token, admin_csrf_token):
     user = user_factory.create()
-    print(UserSchema().dumps(user))
     client.set_cookie("access_token_cookie", admin_token)
     response = client.delete(f"/auth/users/{user.id}", headers={"X-CSRF-TOKEN": admin_csrf_token})
-    print(response.get_json())
     assert response.status_code == 200
     data = response.get_json()
     assert data["message"] == "User deleted successfully"
@@ -156,7 +155,6 @@ def test_delete_user(client, user_factory, admin_token, admin_csrf_token):
 
 def test_delete_not_admin(client, user_factory, user_token, user_csrf_token):
     user = user_factory.create()
-    print(user)
     client.set_cookie("access_token_cookie", user_token)
     response = client.delete(f"/auth/users/{user.id}", headers={"X-CSRF-TOKEN": user_csrf_token})
     assert response.status_code == 403
@@ -233,4 +231,73 @@ def test_get_user_wishlist_no_token(client, user_factory):
     assert response.status_code == 401
 
 
-# TODO: Add test for update_user
+def test_update_user_personal_info(client, regular_user, user_token, user_csrf_token):
+    fake = Faker()
+    user = regular_user
+    client.set_cookie("access_token_cookie", user_token)
+    new_username = fake.user_name()
+    new_email = fake.email()
+    response = client.put(
+        f"/auth/users/{user.id}",
+        data=json.dumps({"username": new_username, "email": new_email}),
+        content_type="application/json",
+        headers={"X-CSRF-TOKEN": user_csrf_token}
+    )
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["message"] == "User updated successfully"
+    assert user.username == new_username
+    assert user.email == new_email
+
+
+def test_update_user_personal_info_not_the_right_user(client, regular_user, user_token, user_csrf_token, user_factory):
+    fake = Faker()
+    user = user_factory.create()
+    client.set_cookie("access_token_cookie", user_token)
+    new_username = fake.user_name()
+    new_email = fake.email()
+    response = client.put(
+        f"/auth/users/{user.id}",
+        data=json.dumps({"username": new_username, "email": new_email}),
+        content_type="application/json",
+        headers={"X-CSRF-TOKEN": user_csrf_token}
+    )
+    assert response.status_code == 403
+    data = response.get_json()
+    assert data["error"] == "You are not authorized to perform this action"
+
+
+def test_update_password(client, regular_user, user_token, user_csrf_token):
+    fake = Faker()
+    user = regular_user
+    user_password = 'password'  # we use the default password for the regular user (and all other users)
+    new_password = fake.password()
+    client.set_cookie("access_token_cookie", user_token)
+    response = client.put(
+        f"/auth/users/{user.id}/password",
+        data=json.dumps({"current_password": user_password, "new_password": new_password}),
+        content_type="application/json",
+        headers={"X-CSRF-TOKEN": user_csrf_token}
+    )
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["message"] == "User password updated successfully"
+    assert user.check_password(new_password)
+
+
+def test_update_password_wrong_current_password(client, regular_user, user_token, user_csrf_token):
+    fake = Faker()
+    user = regular_user
+    user_password = 'wrong_password'  # we use the default password for the regular user (and all other users)
+    new_password = fake.password()
+    client.set_cookie("access_token_cookie", user_token)
+    response = client.put(
+        f"/auth/users/{user.id}/password",
+        data=json.dumps({"current_password": user_password, "new_password": new_password}),
+        content_type="application/json",
+        headers={"X-CSRF-TOKEN": user_csrf_token}
+    )
+    assert response.status_code == 400
+    data = response.get_json()
+    assert data["error"] == "Current password is incorrect"
+    assert user.check_password('password')  # the password should not have changed

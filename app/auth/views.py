@@ -85,11 +85,57 @@ def get_user(user_id):
     return jsonify(serialized_user)
 
 
-# TODO: implement the update_user route
 @auth.route('/users/<int:user_id>', methods=['PUT'])
 @jwt_required()
 def update_user(user_id):
-    return f'Update user with id {user_id}'
+    data = request.json
+    user = db.session.execute(db.select(User).where(User.id == user_id)).scalar()
+    if user is None:
+        return jsonify({"error": "User not found"}), 404
+    current_user = get_jwt_identity()
+    if user_id != int(current_user):
+        return jsonify({"error": "You are not authorized to perform this action"}), 403
+    schema = UserSchema(only=['first_name', 'last_name', 'phone_number', 'email', 'username', 'shipping_address', 'shipping_city', 'shipping_state', 'shipping_country', 'shipping_postal_code'])
+    update_data = schema.load({
+        'first_name': data.get('first_name', user.first_name),
+        'last_name': data.get('last_name', user.last_name),
+        'phone_number': data.get('phone_number', user.phone_number),
+        'email': data.get('email', user.email),
+        'username': data.get('username', user.username),
+        'shipping_address': data.get('shipping_address', user.shipping_address),
+        'shipping_city': data.get('shipping_city', user.shipping_city),
+        'shipping_state': data.get('shipping_state', user.shipping_state),
+        'shipping_country': data.get('shipping_country', user.shipping_country),
+        'shipping_postal_code': data.get('shipping_postal_code', user.shipping_postal_code)
+    })
+    for key, value in update_data.items():
+        setattr(user, key, value)
+    db.session.commit()
+    return jsonify({"message": "User updated successfully"})
+
+
+@auth.route('/users/<int:user_id>/password', methods=['PUT'])
+@jwt_required()
+def update_user_password(user_id):
+    data = request.json
+    user = db.session.execute(db.select(User).where(User.id == user_id)).scalar()
+    if user is None:
+        return jsonify({"error": "User not found"}), 404
+    current_user = get_jwt_identity()
+    if user_id != int(current_user):
+        return jsonify({"error": "You are not authorized to perform this action"}), 403
+    if 'current_password' not in data:
+        return jsonify({"error": "Current password is required"}), 400
+    if not user.check_password(data['current_password']):
+        return jsonify({"error": "Current password is incorrect"}), 400
+    if user.check_password(data['new_password']):
+        return jsonify({"error": "New password cannot be the same as the current password"}), 400
+    if 'new_password' in data:
+        user.set_password(data['new_password'])
+    else:
+        return jsonify({"error": "New password is required"}), 400
+    db.session.commit()
+    return jsonify({"message": "User password updated successfully"})
 
 
 @auth.route('/users/<int:user_id>', methods=['DELETE'])
@@ -161,6 +207,7 @@ def login():
     response = jsonify({"message": "Login successful", "user_id": user.id})
     set_access_cookies(response, access_token)
     # response.headers['X-CSRF-Token'] = csrf_token
+    user.last_login = db.func.now()
     return response, 200
 
 
@@ -194,4 +241,4 @@ def get_csrf_token():
     token = generate_csrf()
     response = jsonify({'msg': 'CSRF token generated'})
     response.headers['X-CSRF-Token'] = token
-    return responseget_csrf_token
+    return response
