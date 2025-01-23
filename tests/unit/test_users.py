@@ -239,7 +239,7 @@ def test_update_user_personal_info(client, regular_user, user_token, user_csrf_t
     new_email = fake.email()
     response = client.put(
         f"/auth/users/{user.id}",
-        data=json.dumps({"username": new_username, "email": new_email}),
+        data=json.dumps({"username": new_username, "email": new_email, 'date_of_birth': '10/29/1995'}),
         content_type="application/json",
         headers={"X-CSRF-TOKEN": user_csrf_token}
     )

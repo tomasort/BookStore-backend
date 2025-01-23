@@ -1,4 +1,5 @@
 from app.auth import auth
+import pdb
 from flask import session
 from app import db, admin_required
 from flask import request, jsonify
@@ -8,6 +9,7 @@ from flask_wtf.csrf import generate_csrf
 from app.models import Book
 from app.models import User
 from app.schemas import UserSchema
+from datetime import datetime
 
 
 user_schema = UserSchema()
@@ -95,13 +97,19 @@ def update_user(user_id):
     current_user = get_jwt_identity()
     if user_id != int(current_user):
         return jsonify({"error": "You are not authorized to perform this action"}), 403
-    schema = UserSchema(only=['first_name', 'last_name', 'phone_number', 'email', 'username', 'shipping_address', 'shipping_city', 'shipping_state', 'shipping_country', 'shipping_postal_code'])
+    if 'date_of_birth' in data:
+        try:
+            data['date_of_birth'] = str(datetime.strptime(data['date_of_birth'], '%m/%d/%Y'))
+        except ValueError:
+            return jsonify({"error": "Invalid date format. Use MM/DD/YYYY."}), 400
+    schema = UserSchema(only=['first_name', 'last_name', 'phone_number', 'email', 'username', 'shipping_address', 'shipping_city', 'shipping_state', 'shipping_country', 'shipping_postal_code', 'date_of_birth'])
     update_data = schema.load({
         'first_name': data.get('first_name', user.first_name),
         'last_name': data.get('last_name', user.last_name),
         'phone_number': data.get('phone_number', user.phone_number),
         'email': data.get('email', user.email),
         'username': data.get('username', user.username),
+        'date_of_birth': data.get('date_of_birth', user.date_of_birth),
         'shipping_address': data.get('shipping_address', user.shipping_address),
         'shipping_city': data.get('shipping_city', user.shipping_city),
         'shipping_state': data.get('shipping_state', user.shipping_state),
