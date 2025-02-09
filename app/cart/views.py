@@ -62,13 +62,14 @@ def get_cart():
         cart_id = session.get('cart_id')
         if cart_id is not None:
             cart = db.session.query(Cart).filter_by(id=cart_id).first()
-        else:
+        if not cart:
             cart = Cart()
             db.session.add(cart)
             db.session.commit()
             session['cart_id'] = cart.id
     if cart:
         return jsonify(cart_schema.dump(cart)), 200
+    current_app.logger.info(f"Cart not found for user ID: {user_id}")
     return jsonify({"message": "Cart not found"}), 404
 
 

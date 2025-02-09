@@ -6,6 +6,8 @@ from app import db
 from app.api.reviews import reviews
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, set_access_cookies
 from flask_wtf.csrf import generate_csrf
+from sqlalchemy import func
+from flask import current_app
 
 
 @reviews.route('', methods=['GET'])
@@ -21,8 +23,18 @@ def get_reviews_for_book(book_id):
     if not book:
         return jsonify({'message': 'Book not found'}), 404
     reviews = book.reviews
-    reviews_schema = ReviewSchema(many=True)
-    return jsonify(reviews_schema.dump(reviews)), 200
+    # TODO: paginate reviews
+    reviews_schema = ReviewSchema(exclude=['book'], many=True)
+    counts = []
+    for i in reversed(range(1, 6)):
+        counts.append({'rating': i, 'count': len([review for review in reviews if review.rating == i])})
+    response_data = {
+        'total_count': len(reviews),
+        'counts': counts,
+        'average_rating': db.session.query(func.avg(Review.rating)).filter(Review.book_id == book_id).scalar(),
+        'reviews': reviews_schema.dump(reviews)
+    }
+    return jsonify(response_data), 200
 
 
 @reviews.route('/<int:book_id>', methods=['POST'])
@@ -34,6 +46,7 @@ def add_review(book_id):
     user_id = get_jwt_identity()
     user_review = db.session.query(Review).filter_by(user_id=user_id, book_id=book_id).first()
     if user_review:
+        current_app.logger.info(f"User {user_id} has already reviewed book {book_id}")
         return jsonify({'message': 'You have already reviewed this book'}), 400
     data = request.json
     comment = data.get('comment')

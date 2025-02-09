@@ -16,10 +16,13 @@ def test_get_reviews(client, review_factory):
 def test_get_reviews_for_book(client, review_factory, book_factory):
     book = book_factory.create()
     review_factory.create_batch(3, book=book)
+    review_factory.create_batch(5)
+    avg_rating = sum([review.rating for review in book.reviews]) / len(book.reviews)
     response = client.get(f'/api/reviews/{book.id}')
     assert response.status_code == 200
     data = response.get_json()
-    assert len(data) == 3
+    assert data['total_counts'] == 3
+    assert data['average_rating'] == avg_rating
 
 
 def test_add_review(client, book_factory, regular_user, user_token, user_csrf_token):

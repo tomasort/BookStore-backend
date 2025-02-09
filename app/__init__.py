@@ -9,8 +9,8 @@ from logging.handlers import RotatingFileHandler
 from app.config import config
 import logging
 from flask_jwt_extended import JWTManager, get_jwt, verify_jwt_in_request
-from flask_wtf.csrf import CSRFProtect
 from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass
+from flask_jwt_extended import unset_jwt_cookies, unset_access_cookies
 
 
 class Base(DeclarativeBase, MappedAsDataclass):
@@ -36,6 +36,13 @@ def setup_logging(app: Flask) -> None:
     app.logger.addHandler(file_handler)
 
     app.logger.info('app startup')
+
+
+def unauthorized(error):
+    response = jsonify({"error": "Unauthorized User for this page"})
+    unset_jwt_cookies(response)
+    unset_access_cookies(response)
+    return response, 401
 
 
 def create_app(config_name: str | None = None) -> Flask:
@@ -74,6 +81,32 @@ def create_app(config_name: str | None = None) -> Flask:
 
     # set up logging
     setup_logging(app)
+
+    # # app.register_error_handler(401, unauthorized)
+    # @app.errorhandler(401)  # or whichever error code you need
+    # def handle_unauthorized_access(e):
+    #     """
+    #     This error handler will unset the JWT cookies,
+    #     effectively logging the user out or invalidating their session cookies.
+    #     """
+    #     app.logger.info("Unauthorized access. Token has been removed.")
+    #     response = jsonify({"msg": "Unauthorized access. Token has been removed."})
+    #     unset_jwt_cookies(response)
+    #     return response, 401
+
+    @jwt.expired_token_loader
+    def my_expired_token_callback(jwt_header, jwt_data):
+        """
+        This function is called when an expired JWT token 
+        attempts to access a protected endpoint.
+        jwt_header: dict containing header data
+        jwt_data: dict containing JWT claims
+        """
+        response = jsonify({"msg": "Token has expired"})
+        app.logger.info("Unauthorized access. Token has been removed.")
+        # Optionally unset cookies (if using cookie-based tokens)
+        unset_jwt_cookies(response)
+        return response, 401
 
     return app
 
