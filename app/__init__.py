@@ -9,12 +9,7 @@ from logging.handlers import RotatingFileHandler
 from app.config import config
 import logging
 from flask_jwt_extended import JWTManager, get_jwt, verify_jwt_in_request
-from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass
 from flask_jwt_extended import unset_jwt_cookies, unset_access_cookies
-
-
-class Base(DeclarativeBase, MappedAsDataclass):
-    pass
 
 
 # instantiate the extensions
@@ -97,7 +92,7 @@ def create_app(config_name: str | None = None) -> Flask:
     @jwt.expired_token_loader
     def my_expired_token_callback(jwt_header, jwt_data):
         """
-        This function is called when an expired JWT token 
+        This function is called when an expired JWT token
         attempts to access a protected endpoint.
         jwt_header: dict containing header data
         jwt_data: dict containing JWT claims
