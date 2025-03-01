@@ -1,4 +1,6 @@
 # Script for populating the database with the data from the csv
+import os
+from pprint import pprint
 from datetime import datetime
 from time import sleep
 from dateutil.parser import parse
@@ -18,10 +20,19 @@ from typing import List
 import json
 
 
-def deserialize_columns(df: pd.DataFrame, column_names: List[str]) -> pd.DataFrame:
+def deserialize_columns(df: pd.DataFrame) -> pd.DataFrame:
+    def _loads(value):
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            return value
+        except TypeError:
+            return value
     result_df = df.copy()
-    for column_name in column_names:
-        result_df[column_name] = result_df[column_name].apply(json.loads)
+    for column_name in df.columns:
+        if df[column_name].dtype == 'float64':
+            continue
+        result_df[column_name] = result_df[column_name].apply(_loads)
     return result_df
 
 
@@ -177,14 +188,14 @@ def merge_books(book1, book2):
 
 def process_book(book_row):
     book_data = {
-        'title': get_field_value(book_row, 'title', book_row['title_alejandria']),
+        'title': get_field_value(book_row, 'title'),
         'isbn_10': get_field_value(book_row, 'isbn_10'),
         'isbn_13': get_field_value(book_row, 'isbn_13'),
         'publish_date': get_field_value(book_row, 'publish_date'),
         'description': get_field_value(book_row, 'description'),
-        'cover_url': get_field_value(book_row, 'covers'),
-        'current_price': get_field_value(book_row, 'current_price', 0),
-        'previous_price': get_field_value(book_row, 'previous_price', 0),
+        # 'cover_url': get_field_value(book_row, 'covers'),
+        # 'current_price': get_field_value(book_row, 'current_price', 0),
+        # 'previous_price': get_field_value(book_row, 'previous_price', 0),
         'price_alejandria': get_field_value(book_row, 'precio'),
         'iva': get_field_value(book_row, 'iva'),
         'cost': get_field_value(book_row, 'ultimo_costo'),
@@ -199,13 +210,14 @@ def process_book(book_row):
         'number_of_pages': get_field_value(book_row, 'number_of_pages'),
         'bar_code_alejandria': get_field_value(book_row, 'barra_cod'),
         'isbn_alejandria': get_field_value(book_row, 'isbn'),
-        'code_alejandria': get_field_value(book_row, 'alejandria_id'),
+        'code_alejandria': get_field_value(book_row, 'cod_art'),
         'physical_dimensions': get_field_value(book_row, 'physical_dimensions'),
         'weight': get_field_value(book_row, 'weight'),
         'publish_places': book_row['publish_places'],
         'edition_name': get_field_value(book_row, 'edition_name'),
         'subtitle': get_field_value(book_row, 'subtitle')
     }
+    pprint(book_data)
     new_book_data = BookSchema().load(book_data)
     new_book = Book(**new_book_data)
     return new_book
@@ -311,82 +323,89 @@ commit = True
 # TODO: add some books to the featured books table
 
 
+def check_if_book_exists(session, new_book):
+    existing_book = session.execute(
+        select(Book).where(
+            or_(
+                and_(
+                    Book.code_alejandria == new_book.code_alejandria,
+                    Book.title == new_book.title
+                ),
+                and_(
+                    Book.isbn_10.is_not(None),
+                    Book.isbn_10 == new_book.isbn_10
+                ),
+                and_(
+                    Book.isbn_13.is_not(None),
+                    Book.isbn_13 == new_book.isbn_13
+                )
+            )
+        )
+    ).scalar()
+    return existing_book
+
+
 @api.cli.command(name='populate')
-@click.option('--books_path', help='CSV file to read book data from')
-@click.option('--authors_path', help='CSV file to read author data from')
-@click.option('--providers_path', help='CSV file to read providers data from')
+@click.option('--source_path', help='Path to the data files')
+@click.option('--books_file', help='CSV file to read book data from', default='books.csv')
+@click.option('--authors_file', help='CSV file to read author data from', default='authors.csv')
+@click.option('--providers_file', help='CSV file to read providers data from', default='providers.csv')
 @click.option('--batch_size', help='Size of the batch to commit to the database', default=50)
 @click.option('--limit', help='limit of books to add to the database', default=100)
 @with_appcontext
-def populate(books_path, authors_path, providers_path, batch_size, limit):
+def populate(source_path, books_file, authors_file, providers_file, batch_size, limit):
+    books_path = os.path.join(source_path, books_file)
+    authors_path = os.path.join(source_path, authors_file)
+    providers_path = os.path.join(source_path, providers_file)
     logger = current_app.logger
     logger.info("Populating database with data from CSV files")
     logger.info("Books path: %s", books_path)
     logger.info("Authors path: %s", authors_path)
     logger.info("Providers path: %s", providers_path)
     books_df = pd.read_csv(books_path, dtype={'isbn_13': str, 'isbn_10': str, 'ean': str}, sep='\t')
-    book_list_fields = ['languages', 'series', 'publish_places', 'subjects', 'authors_ol', 'authors_cdl', 'authors_id_cdl', 'genres', 'publishers']
-    books_df = deserialize_columns(books_df, book_list_fields)
+    print(books_df.info())
+    books_df = deserialize_columns(books_df)
     authors_df = pd.read_csv(authors_path, dtype={'id_cdl': str}, sep='\t')
-    authors_list_fields = ['id_alejandria', 'isbn_alejandria']
-    authors_df = deserialize_columns(authors_df, authors_list_fields)
+    authors_df = deserialize_columns(authors_df)
     provider_df = pd.read_csv(providers_path, sep='\t')
     session = db.session
-    if limit:
-        books_df = books_df.loc[books_df['covers'].notna(), :]
-        books_df = books_df.sample(limit)
+    # if limit:
+    #     books_df = books_df.loc[books_df['covers'].notna(), :]
+    #     books_df = books_df.sample(limit)
     try:
         for index, row in books_df.iterrows():
             logger.info("Processing book %d", index)
             new_book = process_book(row)
-            # Check if book already exists
-            existing_book = session.execute(
-                select(Book).where(
-                    or_(
-                        and_(
-                            Book.code_alejandria == new_book.code_alejandria,
-                            Book.title == new_book.title
-                        ),
-                        and_(
-                            Book.isbn_10.is_not(None),
-                            Book.isbn_10 == new_book.isbn_10
-                        ),
-                        and_(
-                            Book.isbn_13.is_not(None),
-                            Book.isbn_13 == new_book.isbn_13
-                        )
-                    )
-                )
-            ).scalar()
-
-            if existing_book:
-                logger.info("Book %s already exists", existing_book)
-                logger.info("Attempting to merge book data.")
-                logger.info("\tNew book: %s", new_book)
-                logger.info("\tExisting book: %s", existing_book)
-                new_book = merge_books(existing_book, new_book)
-                logger.info("\tMerged book: %s", new_book)
-            session.add(new_book)
-            session.flush()
-            logger.info("Book %s added", new_book)
-            process_genre(session, new_book, row)
-            logger.info("\tGenres: %s", new_book.genres)
-            process_publishers(session, new_book, row)
-            logger.info("\tPublishers: %s", new_book.publishers)
-            process_languages(session, new_book, row)
-            logger.info("\tLanguages: %s", new_book.languages)
-            process_series(session, new_book, row)
-            logger.info("\tSeries: %s", new_book.series)
-            process_providers(session, new_book, row, provider_df)
-            logger.info("\tProviders: %s", new_book.providers)
-            process_authors(session, new_book, row, authors_df)
-            logger.info("\tAuthors: %s", new_book.authors)
-            if commit:
-                if (index + 1) % batch_size == 0:
-                    session.flush()  # Push changes to the database without committing
-                    session.commit()  # Commit the batch
-        if commit:
-            session.commit()  # Final commit for remaining books
+    #         # Check if book already exists
+    #         existing_book = check_if_book_exists(session, new_book)
+    #         if existing_book:
+    #             logger.info("Book %s already exists", existing_book)
+    #             logger.info("Attempting to merge book data.")
+    #             logger.info("\tNew book: %s", new_book)
+    #             logger.info("\tExisting book: %s", existing_book)
+    #             new_book = merge_books(existing_book, new_book)
+    #             logger.info("\tMerged book: %s", new_book)
+    #         session.add(new_book)
+    #         session.flush()
+    #         logger.info("Book %s added", new_book)
+    #         process_genre(session, new_book, row)
+    #         logger.info("\tGenres: %s", new_book.genres)
+    #         process_publishers(session, new_book, row)
+    #         logger.info("\tPublishers: %s", new_book.publishers)
+    #         process_languages(session, new_book, row)
+    #         logger.info("\tLanguages: %s", new_book.languages)
+    #         process_series(session, new_book, row)
+    #         logger.info("\tSeries: %s", new_book.series)
+    #         process_providers(session, new_book, row, provider_df)
+    #         logger.info("\tProviders: %s", new_book.providers)
+    #         process_authors(session, new_book, row, authors_df)
+    #         logger.info("\tAuthors: %s", new_book.authors)
+    #         if commit:
+    #             if (index + 1) % batch_size == 0:
+    #                 session.flush()  # Push changes to the database without committing
+    #                 session.commit()  # Commit the batch
+    #     if commit:
+    #         session.commit()  # Final commit for remaining books
     except Exception as e:
         print(f"Error processing books: {str(e)}")
         if commit:

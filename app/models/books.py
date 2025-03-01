@@ -78,7 +78,7 @@ class Book(db.Model):
     isbn_13: so.Mapped[Optional[str]] = so.mapped_column(sa.String, unique=True, index=True)
     publish_date: so.Mapped[Optional[sa.Date]] = so.mapped_column(sa.Date)
     description: so.Mapped[Optional[str]] = so.mapped_column(sa.Text)
-    cover_url: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    # cover_url: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     current_price: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(10, 2))
     previous_price: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(10, 2))
     price_alejandria: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(10, 2))
@@ -124,8 +124,43 @@ class Book(db.Model):
     )
     reviews: so.Mapped[list["Review"]] = so.relationship("Review", back_populates="book")
 
+    # Add the new relationship to the Cover model
+    covers: so.Mapped[list["Cover"]] = so.relationship("Cover", back_populates="book", cascade="all, delete-orphan")
+
     def __repr__(self) -> str:
         return f"<Book(id={self.id}, title='{self.title}', isbn10='{self.isbn_10}', isbn13='{self.isbn_13}')>"
+
+    # Helper property to easily get the primary cover
+    @property
+    def primary_cover(self) -> Optional["Cover"]:
+        """Returns the primary cover for the book, or the first cover if no primary is set."""
+        for cover in self.covers:
+            if cover.is_primary:
+                return cover
+        return self.covers[0] if self.covers else None
+
+    @property
+    def cover_url(self) -> Optional[str]:
+        """Returns the URL of the primary cover for backward compatibility."""
+        cover = self.primary_cover
+        return cover.url if cover else None
+
+
+class Cover(db.Model):
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    book_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("book.id", ondelete="CASCADE"), nullable=False)
+    url: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    description: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    is_primary: so.Mapped[bool] = so.mapped_column(sa.Boolean, default=False)
+    cover_type: so.Mapped[Optional[str]] = so.mapped_column(sa.String)  # e.g., "front", "back", "spine"
+    size: so.Mapped[Optional[str]] = so.mapped_column(sa.String)  # e.g., "small", "medium", "large"
+    created_at: so.Mapped[sa.DateTime] = so.mapped_column(sa.DateTime, default=sa.func.now())
+
+    # Define the relationship back to the Book model
+    book: so.Mapped["Book"] = so.relationship("Book", back_populates="covers")
+
+    def __repr__(self) -> str:
+        return f"<Cover(id={self.id}, book_id={self.book_id}, is_primary={self.is_primary})>"
 
 
 class Genre(db.Model):
