@@ -1,6 +1,18 @@
 from app import ma
 from app.models import Book, Author, Genre, Series, Publisher, Language, Provider, FeaturedBook
-from marshmallow import fields
+from datetime import datetime
+from marshmallow import fields, ValidationError
+
+
+# Custom DateTime field
+class DateTimeField(fields.Field):
+    def _deserialize(self, value, attr, data, **kwargs):
+        if value is None:
+            return None
+        try:
+            return datetime.strptime(value, '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            raise ValidationError("Invalid date format. Expected 'YYYY-MM-DD HH:MM:SS'.")
 
 
 class BookSchema(ma.SQLAlchemyAutoSchema):
@@ -19,6 +31,9 @@ class BookSchema(ma.SQLAlchemyAutoSchema):
     average_cost_alejandria = fields.Decimal(as_string=True)
     last_cost_alejandria = fields.Decimal(as_string=True)
     rating = fields.Decimal(as_string=True)
+
+    # Example date field
+    publish_date = DateTimeField(allow_none=True)
 
     # Relationships
     providers = fields.Nested('ProviderSchema', exclude=['books'], allow_none=True, many=True)

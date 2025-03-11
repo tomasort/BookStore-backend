@@ -362,12 +362,13 @@ def populate(source_path, books_file, authors_file, providers_file, batch_size, 
     logger.info("Books path: %s", books_path)
     logger.info("Authors path: %s", authors_path)
     logger.info("Providers path: %s", providers_path)
-    books_df = pd.read_csv(books_path, dtype={'isbn_13': str, 'isbn_10': str, 'ean': str}, sep='\t')
-    print(books_df.info())
+    books_df = pd.read_csv(books_path, dtype={'isbn_13': str, 'isbn_10': str, 'ean': str, 'weight': str}, sep='\t')
     books_df = deserialize_columns(books_df)
-    authors_df = pd.read_csv(authors_path, dtype={'id_cdl': str}, sep='\t')
-    authors_df = deserialize_columns(authors_df)
-    provider_df = pd.read_csv(providers_path, sep='\t')
+    books_df['weight'] = books_df['weight'].astype('str')
+    print(books_df.info())
+    # authors_df = pd.read_csv(authors_path, dtype={'id_cdl': str}, sep='\t')
+    # authors_df = deserialize_columns(authors_df)
+    # provider_df = pd.read_csv(providers_path, sep='\t')
     session = db.session
     # if limit:
     #     books_df = books_df.loc[books_df['covers'].notna(), :]
@@ -376,15 +377,15 @@ def populate(source_path, books_file, authors_file, providers_file, batch_size, 
         for index, row in books_df.iterrows():
             logger.info("Processing book %d", index)
             new_book = process_book(row)
-    #         # Check if book already exists
-    #         existing_book = check_if_book_exists(session, new_book)
-    #         if existing_book:
-    #             logger.info("Book %s already exists", existing_book)
-    #             logger.info("Attempting to merge book data.")
-    #             logger.info("\tNew book: %s", new_book)
-    #             logger.info("\tExisting book: %s", existing_book)
-    #             new_book = merge_books(existing_book, new_book)
-    #             logger.info("\tMerged book: %s", new_book)
+            # Check if book already exists
+            existing_book = check_if_book_exists(session, new_book)
+            if existing_book:
+                logger.info("Book %s already exists", existing_book)
+                logger.info("Attempting to merge book data.")
+                logger.info("\tNew book: %s", new_book)
+                logger.info("\tExisting book: %s", existing_book)
+                new_book = merge_books(existing_book, new_book)
+                logger.info("\tMerged book: %s", new_book)
     #         session.add(new_book)
     #         session.flush()
     #         logger.info("Book %s added", new_book)

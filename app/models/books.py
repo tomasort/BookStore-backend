@@ -76,6 +76,7 @@ class Book(db.Model):
     subtitle: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     isbn_10: so.Mapped[Optional[str]] = so.mapped_column(sa.String, unique=True, index=True)
     isbn_13: so.Mapped[Optional[str]] = so.mapped_column(sa.String, unique=True, index=True)
+    other_isbns: so.Mapped[Optional[List[str]]] = so.mapped_column(MutableList.as_mutable(sa.JSON))
     publish_date: so.Mapped[Optional[sa.Date]] = so.mapped_column(sa.Date)
     description: so.Mapped[Optional[str]] = so.mapped_column(sa.Text)
     # cover_url: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
