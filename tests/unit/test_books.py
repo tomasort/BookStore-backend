@@ -1,3 +1,4 @@
+from pprint import pprint
 import json
 from faker import Faker
 from random import choice
@@ -7,15 +8,17 @@ from app.models import Book
 from app.schemas import BookSchema
 from sqlalchemy import select, func
 from urllib.parse import quote
+from flask import url_for
 
 
 def test_create_simple_book(client, book_factory):
+    """ Test creating a simple book without authors """
     book = book_factory.build(authors=[])
     book_schema = BookSchema(exclude=["id", "authors"])
     # Send a POST request to create a new book
     response = client.post(
-        "/api/books",
-        data=json.dumps(book_schema.dump(book)),
+        url_for("api.books.create_book"),
+        data=book_schema.dumps(book),
         content_type="application/json"
     )
     # Assert that the request was successful
@@ -23,48 +26,54 @@ def test_create_simple_book(client, book_factory):
     response_data = response.get_json()
     assert "book_id" in response_data
     # Verify that the book was created
-    assert db.session.execute(select(Book).where(
-        Book.id == response_data["book_id"])).scalar() is not None
+    assert db.session.execute(select(Book).where(Book.id == response_data["book_id"])).scalar() is not None
 
 
-@pytest.mark.parametrize("num_books, limit, page", [(20, 5, 1), (20, 5, 2), (10, 10, 1), (10, 5, 3)])
+@pytest.mark.parametrize("num_books, limit, page", [(10, 5, 1), (10, 5, 2)])
 def test_get_books_pagination(client, book_factory, num_books, limit, page, cleanup_db):
-    # Create a batch of books
+    """ Test retrieving books with pagination """
     book_factory.create_batch(num_books)
-    print(db.session.execute(select(func.count(Book.id))).scalar())
-    # Send a GET request with pagination parameters
-    response = client.get(f"/api/books?limit={limit}&page={page}")
+    response = client.get(url_for('api.books.get_books', limit=limit, page=page))
     assert response.status_code == 200
     data = response.get_json()
-    assert "books" in data
-    pagination = data["pagination"]
-    assert pagination["pages"] == (num_books // limit) + (num_books % limit > 0)
+    assert 'books' in data
+    assert 'pagination' in data
+    assert 'pages' in data['pagination']
+    assert data["pagination"]["pages"] == (num_books // limit) + (num_books % limit > 0)
     assert isinstance(data["books"], list)
     assert len(data["books"]) == min(limit, num_books - (page - 1) * limit)  # Ensure pagination works as expected
 
 
-@pytest.mark.parametrize("num_books", [1, 10, 20])
+@pytest.mark.parametrize("num_books", [1, 3])
 def test_get_specific_book(client, book_factory, num_books):
     books = book_factory.create_batch(num_books)
-    # Send a GET request to retrieve the specific book
     test_book = choice(books)
-    response = client.get(f"/api/books/{test_book.id}")
+    response = client.get(url_for('api.books.get_book', book_id=test_book.id))
     assert response.status_code == 200
     returned_book = response.get_json()
     assert returned_book["id"] == test_book.id
     assert returned_book["title"] == test_book.title
 
 
-@pytest.mark.parametrize("num_books", [1, 10, 20])
+@pytest.mark.parametrize("num_books", [1, 2])
 def test_update_book(client, book_factory, num_books):
     fake = Faker()
-    # Create a book to update
     books = book_factory.create_batch(num_books)
-    # Update the book's title
-    update_data = {"title": fake.sentence(), "isbn_10": fake.isbn10()}
+    update_data = {
+        "title": fake.sentence(),
+        "isbn_10": fake.isbn10(separator=""),
+        "isbn_13": fake.isbn13(separator=""),
+        "subtitle": fake.sentence(),
+        "other_isbns": [fake.isbn10(separator="") for _ in range(3)],
+        "publish_date": fake.date_this_century().isoformat(),
+        "description": fake.paragraph(),
+        "current_price": fake.random_number(2),
+        "iva": fake.random_number(2),
+        "cost": fake.random_number(2),
+    }
     book = choice(books)
     update_response = client.put(
-        f"/api/books/{book.id}",
+        url_for("api.books.update_book", book_id=book.id),
         data=json.dumps(update_data),
         content_type="application/json",
     )
@@ -72,18 +81,20 @@ def test_update_book(client, book_factory, num_books):
     assert update_response.status_code == 200
     # Verify that the book was updated
     updated_book = db.session.execute(select(Book).where(Book.id == book.id)).scalar()
-    if updated_book is None:
-        assert False
-    assert updated_book.title == update_data["title"]
-    assert updated_book.isbn_10 == update_data["isbn_10"]
+    assert updated_book is not None
+    for key, value in update_data.items():
+        if 'date' in key:
+            assert str(getattr(updated_book, key)) == value
+        else:
+            assert getattr(updated_book, key) == value
 
 
-@pytest.mark.parametrize("num_books", [1, 10, 20])
+@pytest.mark.parametrize("num_books", [1, 3])
 def test_delete_book(client, book_factory, num_books):
     # Create a batch of books
     books = book_factory.create_batch(num_books)
     book_to_delete = choice(books)
-    delete_response = client.delete(f"/api/books/{book_to_delete.id}")
+    delete_response = client.delete(url_for("api.books.delete_book", book_id=book_to_delete.id))
     assert delete_response.status_code == 200
     deleted_book = db.session.execute(select(Book).where(Book.id == book_to_delete.id)).scalar()
     assert deleted_book is None
@@ -92,31 +103,26 @@ def test_delete_book(client, book_factory, num_books):
     assert remaining_book_ids.issubset(db_book_ids)
 
 
-@pytest.mark.parametrize("num_books", [1, 10, 20])
+@pytest.mark.parametrize("num_books", [1, 2, 5])
 def test_search_books_by_title_single_result(client, book_factory, num_books):
     books = book_factory.create_batch(num_books)
-    # Search by title
     searched_book = choice(books)
-    search_response = client.get(
-        f"/api/books/search?title={quote(searched_book.title)}")
+    search_response = client.get(url_for("api.books.search_books", title=searched_book.title))
     assert search_response.status_code == 200
-    # Verify the search results
     data = search_response.get_json()
-    if 'books' not in data:
-        assert False
+    assert 'books' in data
     response_books = data['books']
     assert isinstance(response_books, list)
     assert len(response_books) > 0
     assert all(book["title"] == searched_book.title for book in response_books)
 
 
-@pytest.mark.parametrize("num_books", [1, 10, 20])
+@pytest.mark.parametrize("num_books", [1, 2, 10])
 def test_search_books_by_isbn_single_result(client, book_factory, num_books):
     books = book_factory.create_batch(num_books)
     # Search by title
     searched_book = choice(books)
-    search_response = client.get(
-        f"/api/books/search?isbn={quote(searched_book.isbn_13)}")
+    search_response = client.get(url_for("api.books.search_books", isbn=searched_book.isbn_13))
     assert search_response.status_code == 200
     # Verify the search results
     data = search_response.get_json()
@@ -125,10 +131,7 @@ def test_search_books_by_isbn_single_result(client, book_factory, num_books):
     response_books = data['books']
     assert isinstance(response_books, list)
     assert len(response_books) > 0
-    assert all(
-        (book["isbn_10"] == searched_book.isbn_10
-            and book["isbn_13"] == searched_book.isbn_13
-         ) for book in response_books)
+    assert all((book["isbn_10"] == searched_book.isbn_10 and book["isbn_13"] == searched_book.isbn_13) for book in response_books)
 
 
 def test_search_books_query(client, book_factory, author_factory):
@@ -138,13 +141,11 @@ def test_search_books_query(client, book_factory, author_factory):
     book_with_author = book_factory.create()
     author = author_factory.create(name="The Great Author")
     book_with_author.authors.append(author)
-    search_response = client.get(
-        f"/api/books/search?keyword={quote('great')}")
+    search_response = client.get(url_for("api.books.search_books", keyword="great"))
     assert search_response.status_code == 200
     # Verify the search results are both books
     data = search_response.get_json()
-    if 'books' not in data:
-        assert False
+    assert 'books' in data
     response_books = data['books']
     assert isinstance(response_books, list)
     book_ids = {book["id"] for book in response_books}

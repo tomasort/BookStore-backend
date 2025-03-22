@@ -17,5 +17,5 @@ class CartItemSchema(ma.SQLAlchemyAutoSchema):
         model = CartItem
 
     id = ma.auto_field(dump_only=True)
-    book = fields.Nested('BookSchema', only=('id', 'title', 'subtitle', 'isbn_10', 'isbn_13', 'authors', 'series', 'publishers', 'genres', 'previous_price', 'current_price', 'cover_url', 'rating'), dump_only=True)
+    book = fields.Nested('BookSchema', only=('id', 'title', 'subtitle', 'isbn_10', 'isbn_13', 'authors', 'series', 'publishers', 'genres', 'previous_price', 'current_price', 'rating'), dump_only=True)
     cart = fields.Nested('CartSchema', exclude=('items',))

@@ -13,8 +13,8 @@ import pandas as pd
 from flask.cli import with_appcontext
 from flask import current_app
 from app import db
-from app.models import Book, Author, Genre, Series, Publisher, Language, Provider
-from app.schemas import BookSchema, AuthorSchema, GenreSchema, SeriesSchema, PublisherSchema, LanguageSchema, ProviderSchema
+from app.models import Book, Author, Genre, Series, Publisher, Language, Provider, Cover, AuthorPhoto
+from app.schemas import BookSchema, AuthorSchema, GenreSchema, SeriesSchema, PublisherSchema, LanguageSchema, ProviderSchema, CoverSchema, AuthorPhotoSchema
 from app.api import api
 from typing import List
 import json
@@ -30,7 +30,7 @@ def deserialize_columns(df: pd.DataFrame) -> pd.DataFrame:
             return value
     result_df = df.copy()
     for column_name in df.columns:
-        if df[column_name].dtype == 'float64':
+        if df[column_name].dtype == 'float64' or 'date' in column_name:
             continue
         result_df[column_name] = result_df[column_name].apply(_loads)
     return result_df
@@ -48,17 +48,31 @@ def get_field_value(row, field_name, default=None):
     return row[field_name] if not pd.isna(row[field_name]) else default
 
 
+def process_author_pictures(session, author, author_row):
+    for picture in author_row['photos']:
+        picture_data = {
+            'url': picture,
+            'size': 'large',
+            'is_primary': True if len(author.photos) < 1 else False
+        }
+        picture_data = AuthorPhotoSchema().load(picture_data)
+        new_picture = session.execute(select(AuthorPhoto).where(AuthorPhoto.url == picture)).scalar()
+        if not new_picture:
+            new_picture = AuthorPhoto(**picture_data)
+        if new_picture not in author.photos:
+            author.photos.append(new_picture)
+        session.flush()
+    current_app.logger.info("\tAuthor Photo: %s", author.photos)
+
+
 def process_author(session, author_row):
     summary = author_row['summary_cdl'] if not pd.isna(author_row['summary_cdl']) else get_field_value(author_row, 'bio_ol')
-    photo = author_row['image_url_cdl'] if not pd.isna(author_row['image_url_cdl']) else get_field_value(author_row, 'picture_ol')
-    name = author_row['name_cdl'] if not pd.isna(author_row['name_cdl']) else get_field_value(author_row, 'name_ol', author_row['autor_nombre_alejandria'])
-
+    name = author_row['name_cdl'] if not pd.isna(author_row['name_cdl']) else get_field_value(author_row, 'name_ol', author_row['name_alejandria'])
     try:
         death_date = process_date(author_row['death_date_ol']) if not pd.isna(author_row['death_date_ol']) else None
     except Exception as e:
         print(f"Error parsing death date: {str(e)}")
         death_date = None
-
     try:
         birth_date = process_date(author_row['birth_date_ol']) if not pd.isna(author_row['birth_date_ol']) else None
     except Exception as e:
@@ -72,13 +86,14 @@ def process_author(session, author_row):
         'death_date': death_date,
         'death_date_str': get_field_value(author_row, 'death_date_ol'),
         'biography': summary,
-        'other_names': json.loads(author_row['other_names_ol']) if not pd.isna(author_row['other_names_ol']) else [],
-        'photo_url': photo,
+        'other_names': author_row['other_names_ol'],
+        'photo_url': None,
         'open_library_id': get_field_value(author_row, 'key_ol'),
         'casa_del_libro_id': get_field_value(author_row, 'id_cdl')
     }
 
     new_author_data = AuthorSchema().load(author_data)
+
     # Check if author already exists
     new_author = None
     if new_author_data['open_library_id']:
@@ -92,39 +107,25 @@ def process_author(session, author_row):
         new_author = Author(**new_author_data)
         session.add(new_author)
         session.flush()
+        process_author_pictures(session, new_author, author_row)
     return new_author
 
 
-def find_authors_by_id(authors_df, ids, column_name):
-    """Helper function to find authors by ID in a specific column."""
-    author_ids = set()
-    for author_id in ids:
-        try:
-            author_row = authors_df[authors_df[column_name] == author_id]
-            author_ids.add(author_row.index.values[0])
-        except Exception as e:
-            print(f"Error finding author by id: {str(e)}")
-    return author_ids
-
-
-def add_authors_by_names(session, authors_df, names, column_name, book):
+def add_authors_by_names(session, authors_df, names, book):
     """Helper function to add authors by name to a book."""
     for name in names:
+        if name == '':
+            continue
         try:
-            author_rows = authors_df[authors_df[column_name].str.contains(name, case=False, na=False)]
-            new_author = None
-            if author_rows.empty:
-                new_author = session.execute(select(Author).where(Author.name == name)).scalar()
-                if not new_author:
-                    new_author = Author(name=name)
-                    session.add(new_author)
-                    session.flush()
-            else:
-                new_author = process_author(session, author_rows.iloc[0])
+            new_author = session.execute(select(Author).where(Author.name == name)).scalar()
+            if not new_author:
+                new_author = Author(name=name)
+                session.add(new_author)
+                session.flush()
             if new_author and new_author not in book.authors:
                 book.authors.append(new_author)
         except Exception as e:
-            print(f"Error finding author by name: {str(e)}")
+            print(f"Error adding author by name: {str(e)}")
 
 
 def add_authors_by_indices(session, authors_df, indices, book):
@@ -136,29 +137,63 @@ def add_authors_by_indices(session, authors_df, indices, book):
             if new_author and new_author not in book.authors:
                 book.authors.append(new_author)
         except Exception as e:
-            print(f"Error finding author by index: {str(e)}")
+            raise (e)
+            print(f"Error adding author by index: {str(e)}")
 
 
-def process_authors(session, book, book_row, authors_df):
-    authors_found = False
+def find_authors_by_id(authors_df, ids, column_name):
+    """Helper function to find authors by ID in a specific column."""
+    authors_indices = set()
+    for author_id in ids:
+        try:
+            author_row = authors_df[authors_df[column_name] == author_id]
+            if not author_row.empty:
+                authors_indices.add(author_row.index.values[0])
+        except Exception as e:
+            raise (e)
+            print(f"Error finding author by id: {str(e)}")
+    return authors_indices
 
-    if not authors_found:
-        authors_cdl = find_authors_by_id(authors_df, book_row['authors_id_cdl'], 'id_cdl')
-        add_authors_by_indices(session, authors_df, authors_cdl, book)
-        authors_found = True
 
-    if not authors_found:
-        authors_ol = find_authors_by_id(authors_df, book_row['authors_ol'], 'key_ol')
-        add_authors_by_indices(session, authors_df, authors_ol, book)
-        authors_found = True
+def find_authors_by_name(authors_df, names, column_name):
+    """Helper function to find authors by name in a specific column."""
+    authors_indices = set()
+    for name in names:
+        try:
+            author_rows = authors_df[authors_df[column_name].str.contains(name, case=False, na=False)]
+            if not author_rows.empty:
+                authors_indices.add(author_rows.index.values[0])
+        except Exception as e:
+            print(f"Error finding author by name: {str(e)}")
+    return authors_indices
 
-    if not authors_found:
-        author_names = set()
-        if not pd.isna(book_row['autor_alejandria']):
-            for author_name in re.split(r"\s[-Y/]\s|,", book_row['autor_alejandria']):
-                author_names.add(author_name.strip())
-        add_authors_by_names(session, authors_df, author_names, 'autor_nombre_alejandria', book)
-        authors_found = True
+
+def process_authors(session, book: Book, book_row, authors_df):
+    authors = set()
+
+    def process_and_update(find_func, key, column):
+        if len(authors) < 1:
+            found_authors = find_func(authors_df, book_row[key], column)
+            add_authors_by_indices(session, authors_df, found_authors, book)
+            authors.update(found_authors)
+
+    process_and_update(find_authors_by_id, 'author_ids_cdl', 'id_cdl')
+    process_and_update(find_authors_by_id, 'authors_ol', 'key_ol')
+    process_and_update(find_authors_by_name, 'author_names_cdl', 'name_cdl')
+    process_and_update(find_authors_by_name, 'autor', 'name_alejandria')
+
+    if len(authors) < 1 and len(book_row['author_names_cdl']) > 0:
+        add_authors_by_names(session, authors_df, book_row['author_names_cdl'], book)
+        return
+
+    if len(authors) < 1 and len(book_row['autor']) > 0:
+        add_authors_by_names(session, authors_df, book_row['autor'], book)
+        return
+
+    if len(authors) >= 1:
+        add_authors_by_indices(session, authors_df, authors, book)
+    for author in book.authors:
+        current_app.logger.info(f"\tAuthor: {author}")
 
 
 def merge_books(book1, book2):
@@ -186,7 +221,8 @@ def merge_books(book1, book2):
     return book1
 
 
-def process_book(book_row):
+def process_book(book_row, session):
+    logger = current_app.logger
     book_data = {
         'title': get_field_value(book_row, 'title'),
         'isbn_10': get_field_value(book_row, 'isbn_10'),
@@ -217,16 +253,26 @@ def process_book(book_row):
         'edition_name': get_field_value(book_row, 'edition_name'),
         'subtitle': get_field_value(book_row, 'subtitle')
     }
-    pprint(book_data)
     new_book_data = BookSchema().load(book_data)
     new_book = Book(**new_book_data)
+    # Check if book already exists
+    existing_book = check_if_book_exists(session, new_book)
+    if existing_book:
+        logger.info("Book %s already exists", existing_book)
+        logger.info("Attempting to merge book data.")
+        logger.info("\tNew book: %s", new_book)
+        logger.info("\tExisting book: %s", existing_book)
+        new_book = merge_books(existing_book, new_book)
+        logger.info("\tMerged book: %s", new_book)
+    session.add(new_book)
+    session.flush()
+    logger.info("Book %s added", new_book)
     return new_book
 
 
 def process_provider(session, provider_row):
     provider_data = {
-        'id': provider_row['cod_proveedor'],
-        'alejandria_code': provider_row['cod_proveedor'],
+        'alejandria_code': provider_row['cod_pro'],
         'cedula': provider_row['cedula_proveedor'],
         'name': get_field_value(provider_row, 'nombre_proveedor'),
         'address': get_field_value(provider_row, 'direccion_proveedor'),
@@ -240,7 +286,7 @@ def process_provider(session, provider_row):
         'notes': get_field_value(provider_row, 'notas')
     }
     provider_data = ProviderSchema().load(provider_data)
-    provider = session.execute(select(Provider).where(Provider.id == provider_data['id'])).scalar()
+    provider = session.execute(select(Provider).where(Provider.alejandria_code == provider_data['alejandria_code'])).scalar()
     if not provider:
         provider = Provider(**provider_data)
         session.add(provider)
@@ -249,28 +295,24 @@ def process_provider(session, provider_row):
 
 
 def process_providers(session, book, book_row, providers_df):
-    provider_id = book_row['cod_proveedor']
+    provider_id = book_row['cod_pro']
     if pd.isna(provider_id) or provider_id is None:
         return
     try:
-        provider_rows = providers_df[providers_df['cod_proveedor'] == provider_id]
+        provider_rows = providers_df[providers_df['cod_pro'] == provider_id]
         if provider_rows.empty:
             raise Exception(provider_id)
         provider_row = provider_rows.iloc[0]
         provider = process_provider(session, provider_row)
         if provider and provider not in book.providers:
             book.providers.append(provider)
+        current_app.logger.info("\tProviders: %s", book.providers)
     except Exception as e:
         print(f"Error finding provider with id: {str(e)}")
 
 
 def process_genre(session, book, book_row):
-    alejandria_genre = get_field_value(book_row, 'nom_tema')
     genres = book_row['genres']
-    genres = set(genres)
-    if alejandria_genre:
-        genres.add(alejandria_genre)
-    print(genres)
     for gen in genres:
         genre_data = GenreSchema().load({'name': gen.title()})
         genre = session.execute(select(Genre).where(Genre.name == genre_data['name'])).scalar()
@@ -280,6 +322,24 @@ def process_genre(session, book, book_row):
             session.flush()  # Ensure the genre gets an ID
         if genre not in book.genres:
             book.genres.append(genre)
+    current_app.logger.info("\tGenres: %s", book.genres)
+
+
+def process_book_covers(session, book, book_row):
+    for cover in book_row['covers']:
+        cover_data = {
+            'url': cover,
+            'size': 'large',
+            'is_primary': True if len(book.covers) < 1 else False
+        }
+        cover_data = CoverSchema().load(cover_data)
+        new_cover = session.execute(select(Cover).where(Cover.url == cover)).scalar()
+        if not new_cover:
+            new_cover = Cover(**cover_data)
+        if new_cover not in book.covers:
+            book.covers.append(new_cover)
+        session.flush()
+    current_app.logger.info("\tCovers: %s", book.covers)
 
 
 def process_publishers(session, book, book_row):
@@ -292,6 +352,7 @@ def process_publishers(session, book, book_row):
             session.flush()
         if publisher not in book.publishers:
             book.publishers.append(publisher)
+    current_app.logger.info("\tPublishers: %s", book.publishers)
 
 
 def process_languages(session, book, book_row):
@@ -304,18 +365,21 @@ def process_languages(session, book, book_row):
             session.flush()
         if language not in book.languages:
             book.languages.append(language)
+    current_app.logger.info("\tLanguages: %s", book.languages)
 
 
 def process_series(session, book, book_row):
     for ser in book_row['series']:
         series_data = SeriesSchema().load({'name': ser})
-        series = session.execute(select(Series).where(Series.name == series_data['name'])).scalar()
+        series = session.execute(select(Series).where(
+            Series.name == series_data['name'])).scalar()
         if not series:
             series = Series(**series_data)
             session.add(series)
             session.flush()
         if series not in book.series:
             book.series.append(series)
+    current_app.logger.info("\tSeries: %s", book.series)
 
 
 commit = True
@@ -326,6 +390,7 @@ commit = True
 def check_if_book_exists(session, new_book):
     existing_book = session.execute(
         select(Book).where(
+
             or_(
                 and_(
                     Book.code_alejandria == new_book.code_alejandria,
@@ -357,56 +422,42 @@ def populate(source_path, books_file, authors_file, providers_file, batch_size, 
     books_path = os.path.join(source_path, books_file)
     authors_path = os.path.join(source_path, authors_file)
     providers_path = os.path.join(source_path, providers_file)
+
     logger = current_app.logger
     logger.info("Populating database with data from CSV files")
     logger.info("Books path: %s", books_path)
     logger.info("Authors path: %s", authors_path)
     logger.info("Providers path: %s", providers_path)
+
     books_df = pd.read_csv(books_path, dtype={'isbn_13': str, 'isbn_10': str, 'ean': str, 'weight': str}, sep='\t')
     books_df = deserialize_columns(books_df)
     books_df['weight'] = books_df['weight'].astype('str')
-    print(books_df.info())
-    # authors_df = pd.read_csv(authors_path, dtype={'id_cdl': str}, sep='\t')
-    # authors_df = deserialize_columns(authors_df)
-    # provider_df = pd.read_csv(providers_path, sep='\t')
+
+    authors_df = pd.read_csv(authors_path, dtype={'id_cdl': str}, sep='\t')
+    authors_df = deserialize_columns(authors_df)
+
+    provider_df = pd.read_csv(providers_path, sep='\t', dtype={'cod_pro': str})
+
     session = db.session
-    # if limit:
-    #     books_df = books_df.loc[books_df['covers'].notna(), :]
-    #     books_df = books_df.sample(limit)
+
     try:
         for index, row in books_df.iterrows():
+            pass
             logger.info("Processing book %d", index)
-            new_book = process_book(row)
-            # Check if book already exists
-            existing_book = check_if_book_exists(session, new_book)
-            if existing_book:
-                logger.info("Book %s already exists", existing_book)
-                logger.info("Attempting to merge book data.")
-                logger.info("\tNew book: %s", new_book)
-                logger.info("\tExisting book: %s", existing_book)
-                new_book = merge_books(existing_book, new_book)
-                logger.info("\tMerged book: %s", new_book)
-    #         session.add(new_book)
-    #         session.flush()
-    #         logger.info("Book %s added", new_book)
-    #         process_genre(session, new_book, row)
-    #         logger.info("\tGenres: %s", new_book.genres)
-    #         process_publishers(session, new_book, row)
-    #         logger.info("\tPublishers: %s", new_book.publishers)
-    #         process_languages(session, new_book, row)
-    #         logger.info("\tLanguages: %s", new_book.languages)
-    #         process_series(session, new_book, row)
-    #         logger.info("\tSeries: %s", new_book.series)
-    #         process_providers(session, new_book, row, provider_df)
-    #         logger.info("\tProviders: %s", new_book.providers)
-    #         process_authors(session, new_book, row, authors_df)
-    #         logger.info("\tAuthors: %s", new_book.authors)
-    #         if commit:
-    #             if (index + 1) % batch_size == 0:
-    #                 session.flush()  # Push changes to the database without committing
-    #                 session.commit()  # Commit the batch
-    #     if commit:
-    #         session.commit()  # Final commit for remaining books
+            new_book = process_book(row, session)
+            process_genre(session, new_book, row)
+            process_publishers(session, new_book, row)
+            process_languages(session, new_book, row)
+            process_series(session, new_book, row)
+            process_providers(session, new_book, row, provider_df)
+            process_authors(session, new_book, row, authors_df)
+            process_book_covers(session, new_book, row)
+            # if commit:
+            #     if (index + 1) % batch_size == 0:
+            #         session.flush()  # Push changes to the database without committing
+            #         session.commit()  # Commit the batch
+        # if commit:
+            # session.commit()  # Final commit for remaining books
     except Exception as e:
         print(f"Error processing books: {str(e)}")
         if commit:

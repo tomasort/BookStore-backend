@@ -1,3 +1,4 @@
+from flask import url_for
 from pprint import pprint
 import pytest
 from app.schemas import UserSchema, CartSchema, CartItemSchema
@@ -7,7 +8,7 @@ import json
 def test_get_cart_with_user(client, cart_factory, regular_user, user_token):
     cart = cart_factory.create(user=regular_user)
     client.set_cookie("access_token_cookie", user_token)
-    response = client.get('/cart')
+    response = client.get(url_for('cart.get_cart'))
     data = response.get_json()
     assert response.status_code == 200
     assert data['id'] == cart.id
@@ -21,14 +22,14 @@ def test_get_cart_without_user(client, cart_factory, user_factory):
     # Mock session cart_id
     with client.session_transaction() as session:
         session['cart_id'] = cart.id
-    response = client.get('/cart')
+    response = client.get(url_for('cart.get_cart'))
     assert response.status_code == 200
     assert response.json['id'] == cart.id
 
 
 def test_get_cart_new_cart_with_user(client, regular_user, user_token):
     client.set_cookie("access_token_cookie", user_token)
-    response = client.get('/cart')
+    response = client.get(url_for('cart.get_cart'))
     assert response.status_code == 200
     data = response.get_json()
     assert len(data['items']) == 0
@@ -36,7 +37,7 @@ def test_get_cart_new_cart_with_user(client, regular_user, user_token):
 
 
 def test_get_cart_new_cart_without_user(client):
-    response = client.get('/cart')
+    response = client.get(url_for('cart.get_cart'))
     assert response.status_code == 200
     data = response.get_json()
     assert len(data['items']) == 0
@@ -50,7 +51,7 @@ def test_add_to_cart_with_existing_cart_and_user(client, regular_user, user_toke
     assert cart.user == regular_user
     client.set_cookie("access_token_cookie", user_token)
     response = client.post(
-        '/cart/add',
+        url_for('cart.add_to_cart'),
         data=json.dumps({"book_id": book.id, "quantity": 2}),
         content_type="application/json",
         headers={"X-CSRF-TOKEN": user_csrf_token}
@@ -69,7 +70,7 @@ def test_add_to_cart_with_existing_cart_without_user(client, cart_factory, book_
     book = book_factory.create()
     assert book not in [item.book for item in cart.items]
     response = client.post(
-        '/cart/add',
+        url_for('cart.add_to_cart'),
         data=json.dumps({"book_id": book.id, "quantity": 2}),
         content_type="application/json",
     )
@@ -88,7 +89,7 @@ def test_update_cart_with_existing_cart_and_user(client, regular_user, user_toke
     assert cart_item.cart == cart
     client.set_cookie("access_token_cookie", user_token)
     response = client.put(
-        '/cart/update',
+        url_for('cart.update_cart'),
         data=json.dumps({"book_id": book.id, "quantity": 4}),
         content_type="application/json",
         headers={"X-CSRF-TOKEN": user_csrf_token}
@@ -114,7 +115,7 @@ def test_update_cart_with_existing_cart_no_user(client, cart_factory, cart_item_
     with client.session_transaction() as session:
         session['cart_id'] = cart.id
     response = client.put(
-        '/cart/update',
+        url_for('cart.update_cart'),
         data=json.dumps({"book_id": book.id, "quantity": 4}),
         content_type="application/json",
     )
@@ -136,8 +137,8 @@ def test_remove_from_cart_with_existing_cart_and_user(total_quantity, quantity_t
     cart_item = cart_item_factory.create(cart=cart, book=book, quantity=total_quantity)
     assert book in [item.book for item in cart.items]
     client.set_cookie("access_token_cookie", user_token)
-    response = client.delete(
-        '/cart/remove',
+    response = client.put(
+        url_for('cart.remove_from_cart'),
         data=json.dumps({"book_id": book.id, "quantity": quantity_to_remove}),
         content_type="application/json",
         headers={"X-CSRF-TOKEN": user_csrf_token}

@@ -1,5 +1,5 @@
 from app import ma
-from app.models import Book, Author, Genre, Series, Publisher, Language, Provider, FeaturedBook
+from app.models import Book, Author, Genre, Series, Publisher, Language, Provider, FeaturedBook, Cover, AuthorPhoto
 from datetime import datetime
 from marshmallow import fields, ValidationError
 
@@ -32,8 +32,10 @@ class BookSchema(ma.SQLAlchemyAutoSchema):
     last_cost_alejandria = fields.Decimal(as_string=True)
     rating = fields.Decimal(as_string=True)
 
-    # Example date field
-    publish_date = DateTimeField(allow_none=True)
+    # # Example date field
+    # publish_date = DateTimeField(allow_none=True)
+    # Replace your custom DateTimeField with Marshmallow's Date field
+    publish_date = fields.Date(allow_none=True)
 
     # Relationships
     providers = fields.Nested('ProviderSchema', exclude=['books'], allow_none=True, many=True)
@@ -45,12 +47,28 @@ class BookSchema(ma.SQLAlchemyAutoSchema):
     reviews = fields.Nested('ReviewSchema', exclude=['book'], many=True, allow_none=True)
 
 
+class CoverSchema(ma.SQLAlchemyAutoSchema):
+    class Meta:
+        model = Cover
+
+    id = ma.auto_field(dump_only=True)
+    books = fields.Nested('BookSchema', many=True, exclude=['covers'])
+
+
 class AuthorSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Author
 
     id = ma.auto_field(dump_only=True)
     books = fields.Nested('BookSchema', many=True, exclude=['authors'])
+
+
+class AuthorPhotoSchema(ma.SQLAlchemyAutoSchema):
+    class Meta:
+        model = AuthorPhoto
+
+    id = ma.auto_field(dump_only=True)
+    author = fields.Nested('AuthorSchema', many=True, exclude=['photos'])
 
 
 class GenreSchema(ma.SQLAlchemyAutoSchema):

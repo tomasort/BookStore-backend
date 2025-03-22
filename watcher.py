@@ -6,7 +6,8 @@ import os
 import shlex  # Add this import for properly splitting command arguments
 
 # Split the command into individual arguments
-SCRIPT_TO_RUN = ["api", "populate", "--source_path", "~/BookStore-data_collection/data/output"]
+# SCRIPT_TO_RUN = ["api", "populate", "--source_path", "~/BookStore-data_collection/data/output"]
+SCRIPT_TO_RUN = ["tests/unit/test_carts.py"]
 WATCH_DIRECTORY = "."
 IGNORE_DIRECTORIES = {
     '__pycache__',
@@ -20,7 +21,8 @@ IGNORE_DIRECTORIES = {
 class ChangeHandler(PatternMatchingEventHandler):
     def __init__(self):
         # Set up patterns for ignoring directories
-        ignore_patterns = [f"*/{dir_name}/*" for dir_name in IGNORE_DIRECTORIES]
+        ignore_patterns = [
+            f"*/{dir_name}/*" for dir_name in IGNORE_DIRECTORIES]
 
         super().__init__(
             patterns=["*.py"],  # Only watch Python files
@@ -39,7 +41,7 @@ class ChangeHandler(PatternMatchingEventHandler):
         print(f"Starting flask {' '.join(SCRIPT_TO_RUN)}...")
 
         # Pass flask as the first argument, followed by each argument in SCRIPT_TO_RUN
-        command = ["flask"] + SCRIPT_TO_RUN
+        command = ["pytest"] + SCRIPT_TO_RUN
         self.process = subprocess.Popen(command)
 
     def on_modified(self, event):

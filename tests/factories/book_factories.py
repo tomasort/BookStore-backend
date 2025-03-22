@@ -13,8 +13,8 @@ class BookFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     title = factory.Faker('sentence')
     subtitle = factory.Faker('sentence')
-    isbn_10 = factory.Faker('isbn10')
-    isbn_13 = factory.Faker('isbn13')
+    isbn_10 = factory.Faker('isbn10', separator='')
+    isbn_13 = factory.Faker('isbn13', separator='')
     publish_date = factory.Faker('date_object')
     description = factory.Faker('text')
     current_price = factory.Faker('pyfloat', right_digits=2, positive=True, min_value=10, max_value=100)
@@ -25,6 +25,7 @@ class BookFactory(factory.alchemy.SQLAlchemyModelFactory):
     cost_supplier = factory.Faker('pyfloat', right_digits=2, positive=True, min_value=5, max_value=150)
     average_cost_alejandria = factory.Faker('pyfloat', right_digits=2, positive=True, min_value=5, max_value=150)
     last_cost_alejandria = factory.Faker('pyfloat', right_digits=2, positive=True, min_value=5, max_value=150)
+    rating = factory.Faker('pyfloat', right_digits=2, positive=True, min_value=1, max_value=5)
     stock = factory.Faker('random_int', min=0, max=500)
     stock_alejandria = factory.Faker('random_int', min=0, max=500)
     stock_consig = factory.Faker('random_int', min=0, max=500)

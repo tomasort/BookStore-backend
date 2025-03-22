@@ -21,7 +21,8 @@ def test_get_reviews_for_book(client, review_factory, book_factory):
     response = client.get(f'/api/reviews/{book.id}')
     assert response.status_code == 200
     data = response.get_json()
-    assert data['total_counts'] == 3
+    print(data)
+    assert data['total_count'] == 3
     assert data['average_rating'] == avg_rating
 
 

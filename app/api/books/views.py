@@ -1,4 +1,6 @@
+from urllib.parse import unquote
 from sqlalchemy import or_
+from marshmallow.exceptions import ValidationError
 from flask import request, jsonify
 from flask import current_app, render_template, request, jsonify, Request
 from datetime import datetime
@@ -41,14 +43,15 @@ def update_book(book_id):
         return jsonify({"error": "No data provided"}), 400
     try:
         # Update fields based on incoming data
-        for key, value in book_schema.dump(book).items():
-            if "date" in key:
-                setattr(book, key, datetime.strptime(
-                    data.get(key, value), "%Y-%m-%d").date())
-                continue
-            setattr(book, key, data.get(key, value))
+        validated_data = book_schema.load(data, partial=True)
+        # Update book object with validated data
+        for key, value in validated_data.items():
+            setattr(book, key, value)
         db.session.commit()
         return jsonify({"message": "Book updated successfully"}), 200
+    except ValidationError as err:
+        db.session.rollback()
+        return jsonify({"error": "Validation error", "details": err.messages}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
@@ -69,7 +72,7 @@ def get_books():
         error_out=False    # Don't raise 404 when page is out of range
     )
 
-    simple_book_schema = BookSchema(only=["id", "title", "subtitle", "isbn_10", "isbn_13", "authors", "series", "genres", "publishers", "current_price", "previous_price", "cover_url", "rating"])
+    simple_book_schema = BookSchema(only=["id", "title", "subtitle", "isbn_10", "isbn_13", "authors", "series", "genres", "publishers", "current_price", "previous_price", "rating"])
 
     # Return JSON response with pagination information
     return jsonify({

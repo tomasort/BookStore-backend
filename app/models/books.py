@@ -60,6 +60,7 @@ class Author(db.Model):
     photo_url: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     open_library_id: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     casa_del_libro_id: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    photos: so.Mapped[list["AuthorPhoto"]] = so.relationship("AuthorPhoto", back_populates="author", cascade="all, delete-orphan")
 
     # Define the relationship with books
     books: so.Mapped[list["Book"]] = so.relationship(
@@ -68,6 +69,20 @@ class Author(db.Model):
 
     def __repr__(self) -> str:
         return f"<Author(id={self.id}, name='{self.name}', birth_date='{self.birth_date}', death_date='{self.death_date}')>"
+
+
+class AuthorPhoto(db.Model):
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    author_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("author.id", ondelete="CASCADE"), nullable=False)
+    url: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    is_primary: so.Mapped[bool] = so.mapped_column(sa.Boolean, default=False)
+    size: so.Mapped[Optional[str]] = so.mapped_column(sa.String)  # e.g., "small", "medium", "large"
+    created_at: so.Mapped[sa.DateTime] = so.mapped_column(sa.DateTime, default=sa.func.now())
+
+    author: so.Mapped["Author"] = so.relationship("Author", back_populates="photos")
+
+    def __repr__(self) -> str:
+        return f"<AuthorPhoto(url={self.url}, is_primary={self.is_primary})>"
 
 
 class Book(db.Model):
@@ -79,7 +94,6 @@ class Book(db.Model):
     other_isbns: so.Mapped[Optional[List[str]]] = so.mapped_column(MutableList.as_mutable(sa.JSON))
     publish_date: so.Mapped[Optional[sa.Date]] = so.mapped_column(sa.Date)
     description: so.Mapped[Optional[str]] = so.mapped_column(sa.Text)
-    # cover_url: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     current_price: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(10, 2))
     previous_price: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(10, 2))
     price_alejandria: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(10, 2))
@@ -161,7 +175,7 @@ class Cover(db.Model):
     book: so.Mapped["Book"] = so.relationship("Book", back_populates="covers")
 
     def __repr__(self) -> str:
-        return f"<Cover(id={self.id}, book_id={self.book_id}, is_primary={self.is_primary})>"
+        return f"<Cover(id={self.id}, book_id={self.book_id}, is_primary={self.is_primary}, url={self.url})>"
 
 
 class Genre(db.Model):
