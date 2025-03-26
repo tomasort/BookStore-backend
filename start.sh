@@ -1,7 +1,11 @@
-#/bin/sh
+#!/bin/sh
 
-flask db init
-flask db migrate
+set -e
+
+flask db migrate || true
 flask db upgrade 
-flask run -h 0.0.0.0 -p 5000
 
+# Populate the database with some teset data
+flask api populate --source_path /app/data/output
+
+exec "$@"

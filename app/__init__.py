@@ -77,6 +77,8 @@ def create_app(config_name: str | None = None) -> Flask:
     # set up logging
     setup_logging(app)
 
+    app.logger.info(f"App is running in {config_name} mode")
+    app.logger.info(f"Database URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
     # # app.register_error_handler(401, unauthorized)
     # @app.errorhandler(401)  # or whichever error code you need
     # def handle_unauthorized_access(e):

@@ -12,7 +12,6 @@ from app.schemas import BookSchema, AuthorSchema
 from app.models import OrderItem
 from sqlalchemy import func, case
 
-book_schema = BookSchema()
 
 # TODO: use longin required for create, update, delete routes
 
@@ -22,14 +21,16 @@ book_schema = BookSchema()
 def create_book():
     data = request.json
     try:
-        book_data = book_schema.load(data)
+        book_data = BookSchema().load(data)
         new_book: Book = Book(**book_data)
         db.session.add(new_book)
         db.session.commit()
         return jsonify(
-            {"message": "Book created successfully",
-                "book_id": new_book.id, "book_title": new_book.title}
+            {"message": "Book created successfully", "book_id": new_book.id, "book_title": new_book.title}
         ), 201
+    except ValidationError as err:
+        db.session.rollback()
+        return jsonify({"error": "Validation error", "details": err.messages}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
@@ -43,7 +44,7 @@ def update_book(book_id):
         return jsonify({"error": "No data provided"}), 400
     try:
         # Update fields based on incoming data
-        validated_data = book_schema.load(data, partial=True)
+        validated_data = BookSchema().load(data, partial=True)
         # Update book object with validated data
         for key, value in validated_data.items():
             setattr(book, key, value)
@@ -114,10 +115,14 @@ def search_books():
     title = request.args.get('title', type=str)
     isbn = request.args.get('isbn', type=str)
     author_name = request.args.get('author', type=str)
-    keyword = request.args.get('keyword', type=str)
+    query = request.args.get('q', '', type=str)
+
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 10, type=int)
-    current_app.logger.info(f"Searching for books with title: {title}, ISBN: {isbn}, author: {author_name}, keyword: {keyword}")
+
+    # sort_by = request.args.get('sort_by', 'relevance', type=str)
+
+    current_app.logger.info(f"Searching for books with title: {title}, ISBN: {isbn}, author: {author_name}, query: {query}")
 
     # Build the query
     query = db.select(Book)
@@ -127,11 +132,11 @@ def search_books():
         query = query.filter((Book.isbn_10 == isbn) | (Book.isbn_13 == isbn))
     if author_name:
         query = query.join(Book.authors).filter(Author.name.ilike(f'%{author_name}%'))
-    if keyword:
+    if query:
         query = query.join(Book.authors).filter(
-            (Book.title.ilike(f'%{keyword}%')) |
-            (Book.description.ilike(f'%{keyword}%')) |
-            (Author.name.ilike(f'%{keyword}%'))
+            (Book.title.ilike(f'%{query}%')) |
+            (Book.description.ilike(f'%{query}%')) |
+            (Author.name.ilike(f'%{query}%'))
         )
     # Create pagination object
     pagination = db.paginate(

@@ -11,7 +11,7 @@ class BaseConfig:
     TESTING = False
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', f'sqlite:///{BASE_DIR}/db.sqlite3')
+    SQLALCHEMY_DATABASE_URI = os.environ.get('SQLALCHEMY_DATABASE_URI', f'sqlite:///{BASE_DIR}/db.sqlite3')
 
     # NOTE: use secrets.token_hex(32) to generate a key (real one is in .env)
     SECRET_KEY = os.environ.get('SECRET_KEY', 'f64ac936a2d9b7370c6b55b727f92c18')
@@ -26,7 +26,7 @@ class BaseConfig:
 class DevelopmentConfig(BaseConfig):
     """Development configuration"""
     DEBUG = True
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', f'sqlite:///{BASE_DIR}/dev_db.sqlite3')
+    SQLALCHEMY_DATABASE_URI = os.environ.get('SQLALCHEMY_DATABASE_URI', f'sqlite:///{BASE_DIR}/dev_db.sqlite3')
 
 
 class ProductionConfig(BaseConfig):
