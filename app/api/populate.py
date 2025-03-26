@@ -1,4 +1,5 @@
 # Script for populating the database with the data from the csv
+import numpy as np
 import os
 from pprint import pprint
 from datetime import datetime
@@ -13,7 +14,7 @@ import pandas as pd
 from flask.cli import with_appcontext
 from flask import current_app
 from app import db
-from app.models import Book, Author, Genre, Series, Publisher, Language, Provider, Cover, AuthorPhoto
+from app.models import Book, Author, Genre, Series, Publisher, Language, Provider, Cover, AuthorPhoto, FeaturedBook
 from app.schemas import BookSchema, AuthorSchema, GenreSchema, SeriesSchema, PublisherSchema, LanguageSchema, ProviderSchema, CoverSchema, AuthorPhotoSchema
 from app.api import api
 from typing import List
@@ -87,7 +88,6 @@ def process_author(session, author_row):
         'death_date_str': get_field_value(author_row, 'death_date_ol'),
         'biography': summary,
         'other_names': author_row['other_names_ol'],
-        'photo_url': None,
         'open_library_id': get_field_value(author_row, 'key_ol'),
         'casa_del_libro_id': get_field_value(author_row, 'id_cdl')
     }
@@ -229,9 +229,7 @@ def process_book(book_row, session):
         'isbn_13': get_field_value(book_row, 'isbn_13'),
         'publish_date': get_field_value(book_row, 'publish_date'),
         'description': get_field_value(book_row, 'description'),
-        # 'cover_url': get_field_value(book_row, 'covers'),
-        # 'current_price': get_field_value(book_row, 'current_price', 0),
-        # 'previous_price': get_field_value(book_row, 'previous_price', 0),
+        'current_price': get_field_value(book_row, 'precio', 0),
         'price_alejandria': get_field_value(book_row, 'precio'),
         'iva': get_field_value(book_row, 'iva'),
         'cost': get_field_value(book_row, 'ultimo_costo'),
@@ -253,6 +251,7 @@ def process_book(book_row, session):
         'edition_name': get_field_value(book_row, 'edition_name'),
         'subtitle': get_field_value(book_row, 'subtitle')
     }
+    print(book_data['publish_date'], type(book_data['publish_date']))
     new_book_data = BookSchema().load(book_data)
     new_book = Book(**new_book_data)
     # Check if book already exists
@@ -267,6 +266,13 @@ def process_book(book_row, session):
     session.add(new_book)
     session.flush()
     logger.info("Book %s added", new_book)
+    process_book_covers(session, new_book, book_row)
+    if new_book.cover_url is not None and new_book.description is not None:
+        if session.query(FeaturedBook).filter(FeaturedBook.book_id == new_book.id).count() < 1:
+            featured_book = FeaturedBook(book_id=new_book.id)
+            session.add(featured_book)
+            session.flush()
+            logger.info("Featured book %s added", new_book)
     return new_book
 
 
@@ -419,6 +425,8 @@ def check_if_book_exists(session, new_book):
 @click.option('--limit', help='limit of books to add to the database', default=100)
 @with_appcontext
 def populate(source_path, books_file, authors_file, providers_file, batch_size, limit):
+    db.drop_all()
+    db.create_all()
     books_path = os.path.join(source_path, books_file)
     authors_path = os.path.join(source_path, authors_file)
     providers_path = os.path.join(source_path, providers_file)
@@ -432,6 +440,7 @@ def populate(source_path, books_file, authors_file, providers_file, batch_size, 
     books_df = pd.read_csv(books_path, dtype={'isbn_13': str, 'isbn_10': str, 'ean': str, 'weight': str}, sep='\t')
     books_df = deserialize_columns(books_df)
     books_df['weight'] = books_df['weight'].astype('str')
+    print(books_df['publish_date'])
 
     authors_df = pd.read_csv(authors_path, dtype={'id_cdl': str}, sep='\t')
     authors_df = deserialize_columns(authors_df)
@@ -451,13 +460,12 @@ def populate(source_path, books_file, authors_file, providers_file, batch_size, 
             process_series(session, new_book, row)
             process_providers(session, new_book, row, provider_df)
             process_authors(session, new_book, row, authors_df)
-            process_book_covers(session, new_book, row)
-            # if commit:
-            #     if (index + 1) % batch_size == 0:
-            #         session.flush()  # Push changes to the database without committing
-            #         session.commit()  # Commit the batch
-        # if commit:
-            # session.commit()  # Final commit for remaining books
+            if commit:
+                if (index + 1) % batch_size == 0:
+                    session.flush()  # Push changes to the database without committing
+                    session.commit()  # Commit the batch
+        if commit:
+            session.commit()  # Final commit for remaining books
     except Exception as e:
         print(f"Error processing books: {str(e)}")
         if commit:

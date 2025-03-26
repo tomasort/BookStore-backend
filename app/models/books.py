@@ -57,7 +57,6 @@ class Author(db.Model):
     death_date_str: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     biography: so.Mapped[Optional[str]] = so.mapped_column(sa.Text)
     other_names: so.Mapped[Optional[List[str]]] = so.mapped_column(MutableList.as_mutable(sa.JSON))
-    photo_url: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     open_library_id: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     casa_del_libro_id: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     photos: so.Mapped[list["AuthorPhoto"]] = so.relationship("AuthorPhoto", back_populates="author", cascade="all, delete-orphan")
@@ -69,6 +68,14 @@ class Author(db.Model):
 
     def __repr__(self) -> str:
         return f"<Author(id={self.id}, name='{self.name}', birth_date='{self.birth_date}', death_date='{self.death_date}')>"
+
+    @property
+    def photo_url(self) -> Optional[str]:
+        """Returns the URL of the primary photo for backward compatibility."""
+        for photo in self.photos:
+            if photo.is_primary:
+                return photo.url
+        return self.photos[0].url if self.photos else None
 
 
 class AuthorPhoto(db.Model):
@@ -159,6 +166,25 @@ class Book(db.Model):
         """Returns the URL of the primary cover for backward compatibility."""
         cover = self.primary_cover
         return cover.url if cover else None
+
+    @property
+    def price(self):
+        """
+        Gets the current price of the book.
+        """
+        return self.current_price
+
+    @price.setter
+    def price(self, new_price: float):
+        """
+        Sets the current price of the book while keeping a record of the previous price.
+
+        Args:
+            new_price (float): The new price to set for the book.
+        """
+        if self.current_price != new_price:
+            self.previous_price = self.current_price
+            self.current_price = new_price
 
 
 class Cover(db.Model):

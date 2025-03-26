@@ -3,9 +3,11 @@ from datetime import datetime
 from app import db
 from app.api.authors import authors
 from app.models import Author
+from app.schemas.books import AuthorSchema
 
 
-# # ----------- AUTHOR ROUTES -----------
+# ----------- AUTHOR ROUTES -----------
+# TODO: use AuthorSchema to serialize the author data
 
 @authors.route('', methods=['POST'])
 def create_author():
@@ -36,18 +38,7 @@ def create_author():
 def get_authors():
     """Retrieve a list of authors with filtering, pagination, and sorting"""
     authors = db.session.execute(db.select(Author)).scalars()
-    return jsonify(
-        [
-            {
-                "id": author.id,
-                "name": author.name,
-                "birth_date": author.birth_date,
-                "death_date": author.death_date,
-                "biography": author.biography,
-            }
-            for author in authors
-        ]
-    )
+    return jsonify([AuthorSchema().dump(author) for author in authors])
 
 
 @authors.route('/<int:author_id>', methods=['GET'])
@@ -57,22 +48,13 @@ def get_author(author_id):
         db.select(Author).where(Author.id == author_id)).scalar()
     if not author:
         return jsonify({"error": "Author not found"}), 404
-    return jsonify(
-        {
-            "id": author.id,
-            "name": author.name,
-            "birth_date": author.birth_date,
-            "death_date": author.death_date,
-            "biography": author.biography,
-        }
-    )
+    return jsonify(AuthorSchema().dump(author))
 
 
 @authors.route('/<int:author_id>', methods=['PUT'])
 def update_author(author_id):
     """Update an author by its ID"""
-    author = db.session.execute(
-        db.select(Author).where(Author.id == author_id)).scalar()
+    author = db.session.execute(db.select(Author).where(Author.id == author_id)).scalar()
     if not author:
         return jsonify({"error": "Author not found"}), 404
 

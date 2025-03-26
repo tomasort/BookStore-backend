@@ -19,6 +19,10 @@ class BookSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Book
 
+    def get_cover_url(self, obj):
+        return obj.cover_url
+
+    cover_url = fields.Method("get_cover_url", dump_only=True)
     # Fields for the Book model
     id = ma.auto_field(dump_only=True)  # Read-only field
     title = ma.auto_field(required=True)
@@ -59,8 +63,12 @@ class AuthorSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Author
 
+    def get_photo_url(self, obj):
+        return obj.photo_url
+
     id = ma.auto_field(dump_only=True)
     books = fields.Nested('BookSchema', many=True, exclude=['authors'])
+    photo_url = fields.Method("get_photo_url", dump_only=True)
 
 
 class AuthorPhotoSchema(ma.SQLAlchemyAutoSchema):

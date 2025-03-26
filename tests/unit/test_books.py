@@ -14,7 +14,7 @@ from flask import url_for
 def test_create_simple_book(client, book_factory):
     """ Test creating a simple book without authors """
     book = book_factory.build(authors=[])
-    book_schema = BookSchema(exclude=["id", "authors"])
+    book_schema = BookSchema(exclude=["id", "authors", "cover_url"])
     # Send a POST request to create a new book
     response = client.post(
         url_for("api.books.create_book"),
@@ -141,7 +141,7 @@ def test_search_books_query(client, book_factory, author_factory):
     book_with_author = book_factory.create()
     author = author_factory.create(name="The Great Author")
     book_with_author.authors.append(author)
-    search_response = client.get(url_for("api.books.search_books", keyword="great"))
+    search_response = client.get(url_for("api.books.search_books", keyword="tale"))
     assert search_response.status_code == 200
     # Verify the search results are both books
     data = search_response.get_json()

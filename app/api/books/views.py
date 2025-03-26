@@ -8,9 +8,9 @@ from flask_login import login_required
 from app import db
 from app.models import Book, Author, Genre, Series
 from app.api.books import books
-from app.schemas import BookSchema
+from app.schemas import BookSchema, AuthorSchema
 from app.models import OrderItem
-from sqlalchemy import func
+from sqlalchemy import func, case
 
 book_schema = BookSchema()
 
@@ -72,7 +72,7 @@ def get_books():
         error_out=False    # Don't raise 404 when page is out of range
     )
 
-    simple_book_schema = BookSchema(only=["id", "title", "subtitle", "isbn_10", "isbn_13", "authors", "series", "genres", "publishers", "current_price", "previous_price", "rating"])
+    simple_book_schema = BookSchema(only=["id", "title", "subtitle", "isbn_10", "isbn_13", "authors", "series", "genres", "publishers", "current_price", "cover_url", "previous_price", "rating"])
 
     # Return JSON response with pagination information
     return jsonify({
@@ -117,6 +117,7 @@ def search_books():
     keyword = request.args.get('keyword', type=str)
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 10, type=int)
+    current_app.logger.info(f"Searching for books with title: {title}, ISBN: {isbn}, author: {author_name}, keyword: {keyword}")
 
     # Build the query
     query = db.select(Book)
@@ -132,7 +133,6 @@ def search_books():
             (Book.description.ilike(f'%{keyword}%')) |
             (Author.name.ilike(f'%{keyword}%'))
         )
-
     # Create pagination object
     pagination = db.paginate(
         query,
@@ -157,6 +157,84 @@ def search_books():
             "has_prev": pagination.has_prev
         }
     })
+
+
+@books.route('/suggestions', methods=['GET'])
+def suggestions():
+    query = request.args.get('q', '')
+    if not query or len(query) < 2:  # Require at least 2 characters to search
+        return jsonify({
+            'books': [],
+            'authors': []
+        })
+
+    # Search for books
+    books = suggest_books(query)
+
+    # Search for authors
+    authors = suggest_authors(query)
+
+    return jsonify({
+        'books': books,
+        'authors': authors
+    })
+
+
+def suggest_books(query):
+    # Create a search pattern with wildcards for partial matches
+    search_pattern = f"%{query}%"
+
+    # Search in multiple fields with relevance scoring
+    book_results = db.session.query(
+        Book,
+        # Calculate relevance score
+        (
+            # Exact ISBN matches get highest score (10)
+            func.cast(Book.isbn_10 == query, db.Integer) * 10 +
+            func.cast(Book.isbn_13 == query, db.Integer) * 10 +
+            # Exact title matches get highest score (10)
+            func.cast(func.lower(Book.title) == query.lower(), db.Integer) * 10 +
+            # Title starts with query gets high score (5)
+            func.cast(func.lower(Book.title).like(f"{query.lower()}%"), db.Integer) * 5 +
+            # Title contains query gets medium score (3)
+            func.cast(func.lower(Book.title).like(search_pattern), db.Integer) * 3
+        ).label('relevance_score')
+    ).filter(
+        or_(
+            func.lower(Book.title).like(search_pattern),
+            Book.isbn_10.like(search_pattern),
+            Book.isbn_13.like(search_pattern),
+        )
+    ).order_by(
+        # Order by relevance score (descending)
+        db.desc('relevance_score')
+    ).limit(10).all()  # Limit to 10 results for performance
+
+    # Format the results
+    return [{**BookSchema(only=["id", "title", "cover_url"]).dump(book), 'score': score} for book, score in book_results]
+
+
+def suggest_authors(query):
+    search_pattern = f"%{query}%"
+
+    author_results = db.session.query(
+        Author,
+        # Calculate relevance score
+        (
+            # Exact name matches get highest score (10)
+            func.cast(func.lower(Author.name) == query.lower(), db.Integer) * 11 +
+            # Name starts with query gets high score (5)
+            func.cast(func.lower(Author.name).like(f"{query.lower()}%"), db.Integer) * 5 +
+            # Name contains query gets medium score (3)
+            func.cast(func.lower(Author.name).like(search_pattern), db.Integer) * 3
+        ).label('relevance_score')
+    ).filter(
+        func.lower(Author.name).like(search_pattern)
+    ).order_by(
+        db.desc('relevance_score')
+    ).limit(5).all()  # Limit to 5 author results
+
+    return [{**AuthorSchema(only=["id", "name", "photo_url"]).dump(author), 'score': score}for author, score in author_results]
 
 
 @books.route('/<int:book_id>/authors', methods=['PUT'])
@@ -279,4 +357,70 @@ def get_popular_books():
     popular_books = db.session.query(Book).join(OrderItem).group_by(OrderItem.book_id).order_by(func.count(OrderItem.book_id).desc()).limit(10).all()
     if not popular_books:
         return jsonify({"message": "No popular books found"}), 404
-    return jsonify([book.to_dict() for book in popular_books]), 200
+    return jsonify([book_schema.dump(book) for book in popular_books]), 200
+
+
+@books.route('/related/<int:book_id>', methods=['GET'])
+def get_related_books(book_id):
+    """
+    Get books related to the book with the given ID.
+
+    Returns books sorted by relevance based on shared authors and genres.
+    Authors are weighted more heavily than genres.
+    """
+    try:
+        # Get pagination parameters with defaults
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+
+        # Get the source book
+        book = db.get_or_404(Book, book_id)
+
+        # Extract authors and genres
+        author_names = [author.name for author in book.authors or []]
+        genre_names = [genre.name for genre in book.genres or []]
+
+        if not author_names and not genre_names:
+            return jsonify({"message": "Source book has no authors or genres to match", "data": []}), 200
+
+        # Fixed case() syntax for newer SQLAlchemy versions
+        # Define the scoring expressions
+        author_score = func.sum(case((Author.name.in_(author_names), 3), else_=0))
+        genre_score = func.sum(case((Genre.name.in_(genre_names), 1), else_=0))
+
+        total_score = (author_score + genre_score).label('relevance_score')
+
+        # Build and execute query
+        query = db.session.query(Book, total_score).outerjoin(Book.authors).outerjoin(Book.genres)
+
+        # Filter books with matching authors or genres, excluding the original book
+        query = query.filter(
+            (Book.id != book_id) &  # Exclude the original book
+            ((Author.name.in_(author_names)) | (Genre.name.in_(genre_names)))
+        ).group_by(Book.id).order_by(total_score.desc())
+
+        # Add pagination
+        paginated_results = query.paginate(page=page, per_page=per_page)
+
+        # Extract books from the paginated query result
+        books = [book for book, _ in paginated_results.items]
+
+        # Prepare response with pagination metadata
+        response = {
+            "books": [book_schema.dump(b) for b in books],
+            "pagination": {
+                "total": paginated_results.total,
+                "pages": paginated_results.pages,
+                "page": page,
+                "per_page": per_page,
+                "has_next": paginated_results.has_next,
+                "has_prev": paginated_results.has_prev
+            }
+        }
+
+        return jsonify(response), 200
+
+    except Exception as e:
+        # Log the error for debugging
+        current_app.logger.error(f"Error finding related books: {str(e)}")
+        return jsonify({"message": "Failed to retrieve related books"}), 500

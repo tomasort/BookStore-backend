@@ -7,7 +7,7 @@ import shlex  # Add this import for properly splitting command arguments
 
 # Split the command into individual arguments
 # SCRIPT_TO_RUN = ["api", "populate", "--source_path", "~/BookStore-data_collection/data/output"]
-SCRIPT_TO_RUN = ["tests/unit/test_carts.py"]
+SCRIPT_TO_RUN = ["tests", "-k", "test_get_related_books"]
 WATCH_DIRECTORY = "."
 IGNORE_DIRECTORIES = {
     '__pycache__',
