@@ -31,7 +31,7 @@ def get_reviews_for_book(book_id):
     response_data = {
         'total_count': len(reviews),
         'counts': counts,
-        'average_rating': db.session.query(func.avg(Review.rating)).filter(Review.book_id == book_id).scalar(),
+        'average_rating': float(db.session.query(func.avg(Review.rating)).filter(Review.book_id == book_id).scalar()),
         'reviews': reviews_schema.dump(reviews)
     }
     return jsonify(response_data), 200

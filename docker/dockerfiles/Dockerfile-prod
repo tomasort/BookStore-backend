@@ -1,0 +1,21 @@
+
+FROM python:3.12-alpine3.20
+
+WORKDIR /app
+
+RUN pip install --upgrade pip
+
+RUN apk add --no-cache \ 
+    postgresql15 \
+    build-base
+
+COPY requirements.txt requirements.txt
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY docker/script/start-prod.sh start.sh
+
+ENTRYPOINT [ "/app/start.sh" ]
+
+# TODO: change this to run a production server like gunicorn
+CMD ["flask", "run", "--host=0.0.0.0"]

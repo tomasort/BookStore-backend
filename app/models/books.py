@@ -8,48 +8,48 @@ from sqlalchemy.ext.mutable import MutableList
 book_genres = sa.Table(
     "book_genres",
     db.metadata,
-    sa.Column("book_id", sa.Integer, sa.ForeignKey("book.id"), primary_key=True),
-    sa.Column("genre_id", sa.Integer, sa.ForeignKey("genre.id"), primary_key=True),
+    sa.Column("book_id", sa.Integer, sa.ForeignKey("book.id", ondelete="CASCADE"), primary_key=True),
+    sa.Column("genre_id", sa.Integer, sa.ForeignKey("genre.id", ondelete="CASCADE"), primary_key=True),
 )
 
 book_languages = sa.Table(
     "book_languages",
     db.metadata,
-    sa.Column("book_id", sa.Integer, sa.ForeignKey("book.id"), primary_key=True),
-    sa.Column("language_id", sa.Integer, sa.ForeignKey("language.id"), primary_key=True),
+    sa.Column("book_id", sa.Integer, sa.ForeignKey("book.id", ondelete="CASCADE"), primary_key=True),
+    sa.Column("language_id", sa.Integer, sa.ForeignKey("language.id", ondelete="CASCADE"), primary_key=True),
 )
 
 book_series = sa.Table(
     "book_series",
     db.metadata,
-    sa.Column("book_id", sa.Integer, sa.ForeignKey("book.id"), primary_key=True),
-    sa.Column("series_id", sa.Integer, sa.ForeignKey("series.id"), primary_key=True),
+    sa.Column("book_id", sa.Integer, sa.ForeignKey("book.id", ondelete="CASCADE"), primary_key=True),
+    sa.Column("series_id", sa.Integer, sa.ForeignKey("series.id", ondelete="CASCADE"), primary_key=True),
 )
 
 book_publishers = sa.Table(
     "book_publishers",
     db.metadata,
-    sa.Column("book_id", sa.Integer, sa.ForeignKey("book.id"), primary_key=True),
-    sa.Column("publisher_id", sa.Integer, sa.ForeignKey("publisher.id"), primary_key=True),
+    sa.Column("book_id", sa.Integer, sa.ForeignKey("book.id", ondelete="CASCADE"), primary_key=True),
+    sa.Column("publisher_id", sa.Integer, sa.ForeignKey("publisher.id", ondelete="CASCADE"), primary_key=True),
 )
 
 book_providers = sa.Table(
     "book_providers",
     db.metadata,
-    sa.Column("book_id", sa.Integer, sa.ForeignKey("book.id"), primary_key=True),
-    sa.Column("provider_id", sa.Integer, sa.ForeignKey("provider.id"), primary_key=True),
+    sa.Column("book_id", sa.Integer, sa.ForeignKey("book.id", ondelete="CASCADE"), primary_key=True),
+    sa.Column("provider_id", sa.Integer, sa.ForeignKey("provider.id", ondelete="CASCADE"), primary_key=True),
 )
 
 book_authors = sa.Table(
     "book_authors",
     db.metadata,
-    sa.Column("book_id", sa.Integer, sa.ForeignKey("book.id"), primary_key=True),
-    sa.Column("author_id", sa.Integer, sa.ForeignKey("author.id"), primary_key=True),
+    sa.Column("book_id", sa.Integer, sa.ForeignKey("book.id", ondelete="CASCADE"), primary_key=True),
+    sa.Column("author_id", sa.Integer, sa.ForeignKey("author.id", ondelete="CASCADE"), primary_key=True),
 )
 
 
 class Author(db.Model):
-    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    id: so.Mapped[int] = so.mapped_column(sa.Integer, primary_key=True, autoincrement=True)
     name: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
     birth_date: so.Mapped[Optional[sa.Date]] = so.mapped_column(sa.Date)
     birth_date_str: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
@@ -79,7 +79,7 @@ class Author(db.Model):
 
 
 class AuthorPhoto(db.Model):
-    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    id: so.Mapped[int] = so.mapped_column(sa.Integer, primary_key=True, autoincrement=True)
     author_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("author.id", ondelete="CASCADE"), nullable=False)
     url: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
     is_primary: so.Mapped[bool] = so.mapped_column(sa.Boolean, default=False)
@@ -93,7 +93,7 @@ class AuthorPhoto(db.Model):
 
 
 class Book(db.Model):
-    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    id: so.Mapped[int] = so.mapped_column(sa.Integer, primary_key=True, autoincrement=True)
     title: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
     subtitle: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     isbn_10: so.Mapped[Optional[str]] = so.mapped_column(sa.String, unique=True, index=True)
@@ -123,7 +123,7 @@ class Book(db.Model):
     publish_places: so.Mapped[Optional[list[str]]] = so.mapped_column(MutableList.as_mutable(sa.JSON))
     edition_name: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     discounts: so.Mapped[Optional[list["Discount"]]] = so.relationship("Discount", back_populates="book")
-    rating: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(1, 2), default=0)
+    rating: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(4, 2), default=0)
 
     # Define the relationships
     providers: so.Mapped[list["Provider"]] = so.relationship(
@@ -188,7 +188,7 @@ class Book(db.Model):
 
 
 class Cover(db.Model):
-    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    id: so.Mapped[int] = so.mapped_column(sa.Integer, primary_key=True, autoincrement=True)
     book_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("book.id", ondelete="CASCADE"), nullable=False)
     url: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
     description: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
@@ -205,7 +205,7 @@ class Cover(db.Model):
 
 
 class Genre(db.Model):
-    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    id: so.Mapped[int] = so.mapped_column(sa.Integer, primary_key=True, autoincrement=True)
     name: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
 
     # Define the relationship with books
@@ -216,7 +216,7 @@ class Genre(db.Model):
 
 
 class Publisher(db.Model):
-    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    id: so.Mapped[int] = so.mapped_column(sa.Integer, primary_key=True, autoincrement=True)
     name: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
 
     # Define the relationship with books
@@ -227,7 +227,7 @@ class Publisher(db.Model):
 
 
 class Language(db.Model):
-    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    id: so.Mapped[int] = so.mapped_column(sa.Integer, primary_key=True, autoincrement=True)
     name: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
 
     # Define the relationship with books
@@ -238,7 +238,7 @@ class Language(db.Model):
 
 
 class Series(db.Model):
-    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    id: so.Mapped[int] = so.mapped_column(sa.Integer, primary_key=True, autoincrement=True)
     name: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
 
     # Define the relationship with books
@@ -249,7 +249,7 @@ class Series(db.Model):
 
 
 class Provider(db.Model):
-    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    id: so.Mapped[int] = so.mapped_column(sa.Integer, primary_key=True, autoincrement=True)
     alejandria_code: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer)
     cedula: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     name: so.Mapped[Optional[str]] = so.mapped_column(sa.String)

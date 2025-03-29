@@ -43,7 +43,7 @@ class TestingConfig(BaseConfig):
     SERVER_NAME = 'localhost'
     APPLICATION_ROOT = '/'
     PREFERRED_URL_SCHEME = 'http'
-    SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_DATABASE_URL', f'sqlite:///{BASE_DIR}/test_db.sqlite3')
+    SQLALCHEMY_DATABASE_URI = os.environ.get('SQLALCHEMY_DATABASE_URI', f'sqlite:///{BASE_DIR}/test_db.sqlite3')
 
 
 config = {

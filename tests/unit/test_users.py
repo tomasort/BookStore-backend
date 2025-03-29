@@ -1,5 +1,5 @@
+from flask import url_for
 import json
-import pdb
 from flask_jwt_extended import create_access_token, get_csrf_token
 from pprint import pprint
 from faker import Faker
@@ -54,7 +54,7 @@ def test_create_user_duplicate_email(client, user_factory):
     email = fake.email()
     user_factory.create(email=email)
     response = client.post(
-        "/auth/users",
+        url_for('auth.register_user'),
         data=json.dumps({
             "username": fake.user_name(),
             "email": email,

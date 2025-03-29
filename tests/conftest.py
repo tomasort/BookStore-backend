@@ -45,63 +45,28 @@ def app():
     # Create the app instance with the testing configuration
     app = create_app("testing")
 
-    # Establish an application context before running the tests
+    # # Establish an application context before running the tests
     with app.app_context():
-        # Create the database and tables for testing
-        db.create_all()
-        db.session.commit()
+        #     # Create the database and tables for testing
+        #     db.create_all()
+        #     db.session.commit()
         yield app
-        # Drop the database after tests are done
-        db.session.remove()
-        db.drop_all()
-
-
-# @pytest.fixture
-# def db_session(app):
-#     # Begin a transaction
-#     connection = db.engine.connect()
-#     transaction = connection.begin()
-#     options = {"bind": connection, "binds": {}}
-#     # session = db.create_scoped_session(options=options)
-#     session = db._make_scoped_session(options=options)
-#     db.session = session
-
-#     yield session  # Provide this session to the test
-
-#     session.remove()  # Cleanup session
-#     transaction.rollback()  # Rollback the transaction
-#     connection.close()  # Close the connection
-
-
-# @pytest.fixture(autouse=True)
-# def db_session(app):
-#     """Create a new database session for a test."""
-#     with app.app_context():
-#         connection = db.engine.connect()
-#         transaction = connection.begin()
-
-#         # Create a new session factory bound to the connection
-#         session_factory = sessionmaker(bind=connection)
-#         # Create a new scoped session
-#         Session = scoped_session(session_factory)
-
-#         # Override the default session with our test session
-#         old_session = db.session
-#         db.session = Session()
-
-#         yield db.session
-
-#         # Rollback the transaction and restore the default session
-#         transaction.rollback()
-#         connection.close()
-#         Session.remove()
-#         db.session = old_session
+    #     # Drop the database after tests are done
+    #     db.session.remove()
+    #     db.drop_all()
 
 
 @pytest.fixture()
 def client(app):
-    # Use the test client for HTTP requests in your tests
-    return app.test_client()
+    with app.app_context():
+        # Create all tables
+        db.create_all()
+        # Provide the test client
+        with app.test_client() as client:
+            yield client
+        # Clean up the database after each test
+        db.session.remove()
+        db.drop_all()
 
 
 @pytest.fixture()
@@ -145,6 +110,8 @@ def admin_csrf_token(admin_token):
 @pytest.fixture
 def cleanup_db(app):
     with app.app_context():
-        db.drop_all()
-        db.create_all()
+        # db.drop_all()
+        # db.create_all()
         yield
+        # db.session.remove()
+        # db.drop_all()

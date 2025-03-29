@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+
+import time
+import subprocess
+from watchdog.observers import Observer
+from watchdog.events import PatternMatchingEventHandler
+import ast
+import re
+import shlex
+import click
+
+
+class ChangeHandler(PatternMatchingEventHandler):
+    def __init__(self, command, ignore_directories, use_pytest=False):
+        ignore_patterns = [f"*/{dir_name}/*" for dir_name in ignore_directories]
+        super().__init__(
+            patterns=["*.py"],  # Only watch Python files
+            ignore_patterns=ignore_patterns,
+            ignore_directories=True,
+            case_sensitive=True
+        )
+        self.directories_to_ignore = ignore_directories
+        self.command = shlex.split(command)
+        self.use_pytest = use_pytest
+        self.process = None
+        self.restart_command(self.command)
+
+    def restart_command(self, command):
+        print("Restarting command:", " ".join(command))
+        if self.process:
+            self.process.terminate()
+            self.process.wait()
+        self.process = subprocess.Popen(command)
+
+    def on_modified(self, event):
+        if not any(ignored in event.src_path for ignored in self.directories_to_ignore):
+            command = self.command
+            if self.use_pytest:
+                tests = self.get_changed_tests(event.src_path)
+                command = command + ["-k", " or ".join(tests)]
+            self.restart_command(command)
+
+    def on_created(self, event):
+        if not any(ignored in event.src_path for ignored in self.directories_to_ignore):
+            self.restart_command(self.command)
+
+    def get_changed_tests(self, file_path):
+        # Use `git diff` to find changed lines
+        result = subprocess.run(
+            ["git", "diff", "-U0", file_path],
+            capture_output=True,
+            text=True
+        )
+        changed_lines = [
+            int(match.group(1))
+            for match in re.finditer(r"@@ -\d+,\d+ \+(\d+)", result.stdout)
+        ]
+        # Parse the file using `ast` to find test functions
+        tests = []
+        with open(file_path, "r") as f:
+            tree = ast.parse(f.read(), filename=file_path)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.FunctionDef) and node.name.startswith("test_"):
+                    print(node, node.lineno, node.name)
+                    # Check if the function's line number matches a changed line
+                    start_line = node.lineno
+                    end_line = getattr(node, 'end_lineno', None) or self._get_end_line(node)
+                    if node.lineno in changed_lines:
+                        tests.append(node.name)
+                    if any(start_line <= line <= end_line for line in changed_lines):
+                        tests.append(node.name)
+        return tests
+
+    def _get_end_line(self, node):
+        # Helper method to calculate the end line of a function
+        last_node = node.body[-1]
+        while isinstance(last_node, (ast.If, ast.For, ast.While, ast.With, ast.Try)):
+            last_node = last_node.body[-1]
+        return last_node.lineno
+
+
+@click.command()
+@click.argument("command", required=True)
+@click.option("--watch-directory", default=".", help="Directory to watch for changes.")
+@click.option("--ignore-directories", multiple=True, default=["__pycache__", ".git", "venv"], help="Directories to ignore.")
+@click.option("--use-pytest", is_flag=True, default=False, help="Run only the changed tests using pytest.")
+def main(command, watch_directory, ignore_directories, use_pytest):
+    """
+    A file watcher that restarts a command when Python files are modified or created.
+    """
+    event_handler = ChangeHandler(command, ignore_directories, use_pytest)
+    observer = Observer()
+    observer.schedule(event_handler, watch_directory, recursive=True)
+    observer.start()
+
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        observer.stop()
+        if event_handler.process:
+            event_handler.process.terminate()
+    observer.join()
+
+
+if __name__ == "__main__":
+    main()

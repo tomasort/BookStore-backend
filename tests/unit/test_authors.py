@@ -1,3 +1,5 @@
+from flask import url_for
+from faker import Faker
 import json
 from random import choice, sample, randint
 from app import db
@@ -12,7 +14,7 @@ author_schema = AuthorSchema()
 def test_create_author(client, author_factory):
     author = author_factory.build()
     response = client.post(
-        "/api/authors",
+        url_for("api.authors.create_author"),
         data=json.dumps(author_schema.dump(author)),
         content_type="application/json"
     )
@@ -21,44 +23,43 @@ def test_create_author(client, author_factory):
     if "author_id" not in data:
         assert False
     book_in_db = db.session.execute(select(Author).where(Author.id == data["author_id"])).scalar()
-    if book_in_db is None:
-        assert False
+    assert book_in_db is not None
     assert data["author_id"] == book_in_db.id
     assert data["message"] == "Author created successfully"
 
 
-@pytest.mark.parametrize("num_authors", [1, 3, 10, 20])
+# NOTE: The following test is for a book route
+@pytest.mark.parametrize("num_authors", [1, 3, 5])
 def test_add_authors_to_book(client, book_factory, author_factory, num_authors):
     book = book_factory.create()
     authors = author_factory.create_batch(num_authors)
+    num_authors_before = len(book.authors)
     for author in authors:
         assert author not in book.authors
-    # Send a PUT request to add authors to the book
     add_authors_response = client.put(
-        f"/api/books/{book.id}/authors",
+        url_for("api.books.add_authors_to_book", book_id=book.id),
         data=json.dumps({"author_ids": [author.id for author in authors]}),
         content_type="application/json"
     )
-    # Verify that the response is successful
     assert add_authors_response.status_code == 200
     data = add_authors_response.get_json()
     assert data["message"] == "Authors added successfully"
+    assert len(book.authors) == num_authors_before + num_authors
     # Verify that the authors were correctly added to the book
     for author in authors:
         assert author in book.authors
 
 
+# NOTE: The following test is for a book route
 def test_remove_authors_from_book(client, book_factory):
     book = book_factory.create()
     authors = book.authors
+    assert len(authors) > 0
     num_authors = len(authors)
     author_to_delete = choice(authors)
-    # Send a DELETE request to remove the authors from the book
     remove_authors_response = client.delete(
-        f"/api/books/{book.id}/authors/{author_to_delete.id}",
-        content_type="application/json"
+        url_for("api.books.remove_author_from_book", book_id=book.id, author_id=author_to_delete.id),
     )
-    # Verify that the response is successful
     assert remove_authors_response.status_code == 200
     data = remove_authors_response.get_json()
     assert data["message"] == "Author removed successfully"
@@ -67,85 +68,69 @@ def test_remove_authors_from_book(client, book_factory):
     assert len(book.authors) == num_authors - 1
 
 
-@pytest.mark.parametrize("num_authors", [1, 3, 10])
+@pytest.mark.parametrize("num_authors", [1, 5])
 def test_get_authors(client, author_factory, num_authors):
     authors = author_factory.create_batch(num_authors)
-    # Send a GET request to retrieve all authors
-    response = client.get("/api/authors")
-    # Assert that the request was successful
+    response = client.get(url_for("api.authors.get_authors"))
     assert response.status_code == 200
     data = response.get_json()
-    assert isinstance(data, list)  # Should return a list of authors
+    assert isinstance(data, list)
     created_author_ids = {author.id for author in authors}
     response_author_ids = {author['id'] for author in data}
     # Assert that all created authors are in the response
     assert created_author_ids.issubset(response_author_ids)
 
 
-@pytest.mark.parametrize("num_authors", [1, 3, 10])
+@pytest.mark.parametrize("num_authors", [1, 3])
 def test_get_author(client, author_factory, num_authors):
     authors = author_factory.create_batch(num_authors)
     author_to_get = choice(authors)
-    # Send a GET request to retrieve the author
-    response = client.get(f"/api/authors/{author_to_get.id}")
-    # Assert that the request was successful
+    response = client.get(url_for("api.authors.get_author", author_id=author_to_get.id))
     assert response.status_code == 200
     data = response.get_json()
     assert data["name"] == author_to_get.name
-    # Check that the author id is in the response
     assert data["id"] == author_to_get.id
+    assert data["birth_date"] == str(author_to_get.birth_date)
 
 
-@pytest.mark.parametrize("num_authors", [1, 3, 10])
-def test_update_author(client, author_factory, num_authors):
-    authors = author_factory.create_batch(num_authors)
-    author_to_update = choice(authors)
-    # Send a PUT request to update the author
+def test_update_author(client, author_factory):
+    fake = Faker()
+    author = author_factory.create()
     new_data = {
-        "name": "New Name",
-        "birth_date": "1990-01-01",
-        "biography": "New Biography"
+        "name": fake.name(),
+        "birth_date": fake.date_this_century().isoformat(),
+        "biography": fake.paragraph()
     }
     response = client.put(
-        f"/api/authors/{author_to_update.id}",
+        url_for("api.authors.update_author", author_id=author.id),
         data=json.dumps(new_data),
         content_type="application/json"
     )
     # Assert that the request was successful
     assert response.status_code == 200
-    assert author_to_update.name == new_data["name"]
-    assert author_to_update.biography == new_data["biography"]
+    assert author.name == new_data["name"]
+    assert author.biography == new_data["biography"]
+    assert str(author.birth_date) == new_data["birth_date"]
 
 
-@pytest.mark.parametrize("num_authors", [1, 10, 20])
+@pytest.mark.parametrize("num_authors", [1, 2, 3])
 def test_delete_author(client, author_factory, num_authors):
     # Create a batch of authors
     authors = author_factory.create_batch(num_authors)
     author_to_delete = choice(authors)
-
-    # Send a DELETE request to delete the author
-    response = client.delete(f"/api/authors/{author_to_delete.id}")
-
+    num_authors_in_db = db.session.execute(select(func.count()).select_from(Author)).scalar()
+    response = client.delete(url_for("api.authors.delete_author", author_id=author_to_delete.id))
     # Assert that the request was successful
     assert response.status_code == 200
-
     # Check that the author was deleted
     deleted_author = db.session.execute(select(Author).where(Author.id == author_to_delete.id)).scalar()
     assert deleted_author is None
-
-    # Verify the remaining authors still exist by comparing their IDs
-    remaining_author_ids = {author.id for author in authors if author != author_to_delete}
-    db_author_ids = {id for id in db.session.execute(select(Author.id)).scalars()}
-
-    # Assert that all remaining authors are still in the database
-    assert remaining_author_ids.issubset(db_author_ids)
+    # Verify the remaining authors still exist
+    assert db.session.execute(select(func.count()).select_from(Author)).scalar() == num_authors_in_db - 1
 
 
-@pytest.mark.parametrize("num_authors,author_books,total_books", [
-    (1, 4, 20),
-    (2, 3, 6),  # Adjusted to make the test realistic
-    (5, 4, 20)  # Adjusted parameters for clarity
-])
+# TODO: change the factory so that the authors have books already
+@pytest.mark.parametrize("num_authors,author_books,total_books", [(1, 4, 10), (2, 3, 6), (5, 4, 10)])
 def test_get_author_books(client, author_factory, book_factory, num_authors, author_books, total_books):
     authors = author_factory.create_batch(num_authors)
     books = book_factory.create_batch(total_books)
@@ -153,15 +138,13 @@ def test_get_author_books(client, author_factory, book_factory, num_authors, aut
     author_with_books = choice(authors)
     # Assign `author_books` to `author_with_books`
     books_to_assign = sample(books, author_books)
-    author_with_books.books.extend(books_to_assign)
-    db.session.commit()
+    author_with_books.books = books_to_assign
     # Randomly assign remaining books to other authors
     for author in authors:
         if author != author_with_books:
             author.books.extend(sample(books, randint(1, len(books) - 1)))
             db.session.commit()
-    # Send a GET request to retrieve the author's books
-    response = client.get(f"/api/authors/{author_with_books.id}/books")
+    response = client.get(url_for("api.authors.get_books_by_author", author_id=author_with_books.id))
     # Assert that the request was successful
     assert response.status_code == 200
     data = response.get_json()

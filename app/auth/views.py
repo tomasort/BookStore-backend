@@ -30,6 +30,13 @@ def register_user():
 
         new_user = User(username=username, email=email)
 
+        users_with_username = db.session.execute(db.select(User).where(User.username == username)).scalars().all()
+        if len(users_with_username) > 0:
+            return jsonify({"error": "Username is already taken"}), 400
+        users_with_email = db.session.execute(db.select(User).where(User.email == email)).scalars().all()
+        if len(users_with_email) > 0:
+            return jsonify({"error": "Email is already taken"}), 400
+
         # Set the password using the hashing function
         new_user.set_password(password)
 
@@ -44,16 +51,8 @@ def register_user():
 
     except IntegrityError as ie:
         db.session.rollback()
-        error_message = str(ie.orig)
-
-        if "user.username" in error_message.lower():
-            return jsonify({"error": "Username is already taken"}), 400
-        elif "user.email" in error_message.lower():
-            return jsonify({"error": "Email is already taken"}), 400
-
         return jsonify({
             "error": "Database integrity error",
-            "details": "A unique constraint was violated"
         }), 400
 
     except Exception as e:

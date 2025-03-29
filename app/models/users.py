@@ -8,22 +8,22 @@ from app import db
 favorite_books = sa.Table(
     'favorite_books',
     db.metadata,
-    sa.Column('user_id', sa.Integer, sa.ForeignKey('user.id'), primary_key=True),
-    sa.Column('book_id', sa.Integer, sa.ForeignKey('book.id'), primary_key=True)
+    sa.Column('user_id', sa.Integer, sa.ForeignKey('user.id', ondelete="CASCADE"), primary_key=True),
+    sa.Column('book_id', sa.Integer, sa.ForeignKey('book.id', ondelete="CASCADE"), primary_key=True)
 )
 
 wishlist_books = sa.Table(
     'wishlist_books',
     db.metadata,
-    sa.Column('user_id', sa.Integer, sa.ForeignKey('user.id'), primary_key=True),
-    sa.Column('book_id', sa.Integer, sa.ForeignKey('book.id'), primary_key=True)
+    sa.Column('user_id', sa.Integer, sa.ForeignKey('user.id', ondelete="CASCADE"), primary_key=True),
+    sa.Column('book_id', sa.Integer, sa.ForeignKey('book.id', ondelete="CASCADE"), primary_key=True)
 )
 
 user_promotions = sa.Table(
     'user_promotions',
     db.metadata,
-    sa.Column('user_id', sa.Integer, sa.ForeignKey('user.id'), primary_key=True),
-    sa.Column('promotion_id', sa.Integer, sa.ForeignKey('promotions.id'), primary_key=True)
+    sa.Column('user_id', sa.Integer, sa.ForeignKey('user.id', ondelete="CASCADE"), primary_key=True),
+    sa.Column('promotion_id', sa.Integer, sa.ForeignKey('promotions.id', ondelete="CASCADE"), primary_key=True)
 )
 
 

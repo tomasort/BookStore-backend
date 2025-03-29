@@ -1,3 +1,5 @@
+from flask import url_for
+from math import isclose
 from app.schemas import BookSchema, ReviewSchema
 from app import db
 from app.models import Review
@@ -18,12 +20,11 @@ def test_get_reviews_for_book(client, review_factory, book_factory):
     review_factory.create_batch(3, book=book)
     review_factory.create_batch(5)
     avg_rating = sum([review.rating for review in book.reviews]) / len(book.reviews)
-    response = client.get(f'/api/reviews/{book.id}')
+    response = client.get(url_for('api.reviews.get_reviews_for_book', book_id=book.id))
     assert response.status_code == 200
     data = response.get_json()
-    print(data)
     assert data['total_count'] == 3
-    assert data['average_rating'] == avg_rating
+    assert isclose(data['average_rating'], avg_rating)
 
 
 def test_add_review(client, book_factory, regular_user, user_token, user_csrf_token):

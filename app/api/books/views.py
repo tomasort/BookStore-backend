@@ -12,6 +12,8 @@ from app.schemas import BookSchema, AuthorSchema
 from app.models import OrderItem
 from sqlalchemy import func, case
 
+book_schema = BookSchema()
+
 
 # TODO: use longin required for create, update, delete routes
 
@@ -22,6 +24,7 @@ def create_book():
     data = request.json
     try:
         book_data = BookSchema().load(data)
+        print(book_data)
         new_book: Book = Book(**book_data)
         db.session.add(new_book)
         db.session.commit()
@@ -115,14 +118,14 @@ def search_books():
     title = request.args.get('title', type=str)
     isbn = request.args.get('isbn', type=str)
     author_name = request.args.get('author', type=str)
-    query = request.args.get('q', '', type=str)
+    keywords = request.args.get('q', '', type=str)
 
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 10, type=int)
 
     # sort_by = request.args.get('sort_by', 'relevance', type=str)
 
-    current_app.logger.info(f"Searching for books with title: {title}, ISBN: {isbn}, author: {author_name}, query: {query}")
+    current_app.logger.info(f"Searching for books with title: {title}, ISBN: {isbn}, author: {author_name}, query: {keywords}")
 
     # Build the query
     query = db.select(Book)
@@ -132,11 +135,11 @@ def search_books():
         query = query.filter((Book.isbn_10 == isbn) | (Book.isbn_13 == isbn))
     if author_name:
         query = query.join(Book.authors).filter(Author.name.ilike(f'%{author_name}%'))
-    if query:
+    if keywords:
         query = query.join(Book.authors).filter(
-            (Book.title.ilike(f'%{query}%')) |
-            (Book.description.ilike(f'%{query}%')) |
-            (Author.name.ilike(f'%{query}%'))
+            (Book.title.ilike(f'%{keywords}%')) |
+            (Book.description.ilike(f'%{keywords}%')) |
+            (Author.name.ilike(f'%{keywords}%'))
         )
     # Create pagination object
     pagination = db.paginate(
