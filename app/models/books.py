@@ -1,8 +1,11 @@
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.sql import func
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from app import db
 from typing import Optional, List
 from sqlalchemy.ext.mutable import MutableList
+from app.models.reviews import Review
 
 # Define many-to-many relationship tables using Typed ORM style
 book_genres = sa.Table(
@@ -185,6 +188,23 @@ class Book(db.Model):
         if self.current_price != new_price:
             self.previous_price = self.current_price
             self.current_price = new_price
+
+    @hybrid_property
+    def average_rating(self):
+        """Calculate the average rating for the book at the Python level."""
+        if not self.reviews:
+            return 0.0
+        return sum(review.rating for review in self.reviews) / len(self.reviews)
+
+    @average_rating.expression
+    def average_rating(cls):
+        """Calculate the average rating for the book at the SQL level."""
+        return (
+            db.session.query(func.avg(Review.rating))
+            .filter(Review.book_id == cls.id)
+            .correlate(cls)
+            .as_scalar()
+        )
 
 
 class Cover(db.Model):

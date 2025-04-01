@@ -1,6 +1,6 @@
 import factory
 from tests.factories.book_factories import BookFactory
-from app.models import Order, OrderItem
+from app.models import Order, OrderItem, OrderStatus
 from tests.factories.user_factories import UserFactory
 from app import db
 import random
@@ -14,7 +14,7 @@ class OrderFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     date = factory.Faker('date_time_this_decade', before_now=True, after_now=False)
     total = factory.Faker('pydecimal', left_digits=4, right_digits=2, positive=True)
-    status = factory.Faker('random_element', elements=["pending", "completed", "canceled"])
+    status = factory.Faker('random_element', elements=[s for s in OrderStatus])
     user = factory.SubFactory(UserFactory)
     user_id = factory.LazyAttribute(lambda o: o.user.id)
 

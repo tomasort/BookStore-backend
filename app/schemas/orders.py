@@ -1,4 +1,4 @@
-from app.models import Order, OrderItem
+from app.models import Order, OrderItem, OrderStatus
 from marshmallow import fields
 from app import ma
 
@@ -12,7 +12,7 @@ class OrderSchema(ma.SQLAlchemySchema):
     date = ma.auto_field()
     total = fields.Decimal(as_string=True)
     items = fields.List(fields.Nested(lambda: OrderItemSchema()))
-    status = ma.auto_field()
+    status = fields.Enum(OrderStatus, by_value=True)
     user = fields.Nested('UserSchema', exclude=('orders', ), allow_none=True)
 
 

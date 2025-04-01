@@ -64,6 +64,7 @@ class User(db.Model):
     preferred_language: so.Mapped[Optional[str]] = so.mapped_column(sa.String(10), default='en')
     active: so.Mapped[bool] = so.mapped_column(sa.Boolean, default=True)
     created_at: so.Mapped[datetime] = so.mapped_column(sa.DateTime, default=datetime.now(timezone.utc))
+    # TODO: make role and status enum types
     role: so.Mapped[Optional[str]] = so.mapped_column(sa.String(20), default='user')  # 'user', 'admin', or 'staff'
     account_type: so.Mapped[str] = so.mapped_column(sa.String(20), default='regular')
     status: so.Mapped[Optional[str]] = so.mapped_column(sa.String(20), default='active')  # 'active', 'inactive', or 'banned'

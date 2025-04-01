@@ -1,9 +1,19 @@
+import enum
 from datetime import datetime
 from app import db
 from decimal import Decimal
 import sqlalchemy as sa
 from typing import Optional
 import sqlalchemy.orm as so
+from sqlalchemy import Enum
+
+
+class OrderStatus(enum.Enum):
+    PENDING = "Pending"
+    PAID = "Paid"
+    CONFIRMED = "Confirmed"
+    SHIPPED = "Shipped"
+    CANCELED = "Canceled"
 
 
 class Order(db.Model):
@@ -30,7 +40,11 @@ class Order(db.Model):
     user: so.Mapped["User"] = so.relationship("User", back_populates="orders")
 
     tax: so.Mapped[Decimal] = so.mapped_column(sa.Numeric(10, 2), nullable=False, default=0)
-    status: so.Mapped[str] = so.mapped_column(sa.String, nullable=False, default="pending")
+    status = db.Column(
+        db.Enum(OrderStatus),
+        nullable=False,
+        default=OrderStatus.PENDING
+    )
     date: so.Mapped[datetime] = so.mapped_column(sa.DateTime, nullable=False, default=datetime.now)
 
     def __repr__(self):

@@ -48,25 +48,32 @@ def app():
     # # Establish an application context before running the tests
     with app.app_context():
         #     # Create the database and tables for testing
-        #     db.create_all()
-        #     db.session.commit()
+        db.create_all()
+        db.session.commit()
         yield app
     #     # Drop the database after tests are done
     #     db.session.remove()
-    #     db.drop_all()
+        db.drop_all()
 
 
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def client(app):
     with app.app_context():
-        # Create all tables
-        db.create_all()
-        # Provide the test client
-        with app.test_client() as client:
-            yield client
-        # Clean up the database after each test
+        # Create a test client
+        client = app.test_client()
+
+        # Start a transaction
+        connection = db.engine.connect()
+        transaction = connection.begin()
+        db.session.bind = connection
+        db.session.begin_nested()
+
+        yield client  # Provide the test client to the test
+
+        # Roll back the transaction
         db.session.remove()
-        db.drop_all()
+        transaction.rollback()
+        connection.close()
 
 
 @pytest.fixture()

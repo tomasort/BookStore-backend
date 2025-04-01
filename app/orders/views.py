@@ -1,4 +1,5 @@
 from sqlalchemy import select
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask import request, jsonify
 from app.orders import orders
 from app.models import Order, OrderItem
@@ -9,6 +10,8 @@ from app import db
 order_schema = OrderSchema()
 order_item_schema = OrderItemSchema()
 
+# TODO: Add JWT required decorator to the routes that require authentication
+
 
 @orders.route('', methods=['GET'])
 def get_orders():
@@ -18,12 +21,13 @@ def get_orders():
 
 
 @orders.route('', methods=['POST'])
+# @jwt_required(optional=True)
 def create_order():
     data = request.json
     if not data:
         return jsonify({'error': "No Input data provided"}), 400
     try:
-        order_data = order_schema.load(data)
+        order_data = order_schema.loads(data)
         new_order = Order(**order_data)
         # Find the user that is trying to create the order
         user = db.session.execute(select(User).where(User.id == new_order.user_id)).scalar()
@@ -57,7 +61,7 @@ def update_order(order_id):
         order = db.session.execute(select(Order).where(Order.id == order_id)).scalar()
         if not order:
             return jsonify({'error': f"Order {order_id} not found"}), 404
-        order_data = order_schema.load(data, partial=True)
+        order_data = order_schema.loads(data, partial=True)
         for key, value in order_data.items():
             setattr(order, key, value)
         db.session.commit()

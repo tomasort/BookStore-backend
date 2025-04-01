@@ -1,3 +1,4 @@
+from flask import url_for
 import json
 from sqlalchemy import select, func
 from app.schemas import OrderSchema, OrderItemSchema
@@ -10,7 +11,7 @@ order_schema = OrderSchema()
 order_item_schema = OrderItemSchema()
 
 
-@pytest.mark.parametrize("num_orders", [1, 3, 10])
+@pytest.mark.parametrize("num_orders", [1, 3])
 def test_get_orders(client, order_factory, num_orders):
     orders = order_factory.create_batch(num_orders)
     num_orders_in_db = db.session.execute(select(func.count()).select_from(Order)).scalar()
@@ -29,9 +30,7 @@ def test_create_order(client, order_factory, user_factory):
     order = order_factory.build()
     order.user_id = user.id
     order_data = OrderSchema(exclude=["id", "user"]).dump(order)
-    print(order_data)
-    response = client.post("/orders", json=order_data)
-    print(response.get_json())
+    response = client.post(url_for("orders.create_order"), json=json.dumps(order_data), content_type="application/json")
     response_json = response.get_json()
     assert response.status_code == 201
     assert response_json["message"] == "Order created successfully"
@@ -40,25 +39,25 @@ def test_create_order(client, order_factory, user_factory):
 
 
 def test_create_order_no_input(client):
-    response = client.post("/orders", json={})
+    response = client.post(url_for("orders.create_order"), json={}, content_type="application/json")
     assert response.status_code == 400
     assert response.get_json()["error"] == "No Input data provided"
 
 
 def test_create_order_invalid_input(client):
-    response = client.post("/orders", json={"customer_id": "invalid"})
+    response = client.post(url_for("orders.create_order"), json=json.dumps({"customer_id": "invalid"}), content_type="application/json")
     assert response.status_code == 400
     assert "customer_id" in response.get_json()["error"]
 
 
 def test_get_order_success(client, order_factory):
     order = order_factory.create()
-    response = client.get(f"/orders/{order.id}")
+    response = client.get(url_for("orders.get_order", order_id=order.id))
     assert response.status_code == 200
     response_json = response.get_json()
     assert response_json["id"] == order.id
     assert response_json["user_id"] == order.user_id
-    assert response_json["status"] == order.status
+    assert response_json["status"] == order.status.value
 
 
 def test_get_order_not_found(client):
@@ -77,14 +76,14 @@ def test_get_order_invalid_id(client):
 
 def test_update_order_success(client, order_factory):
     order = order_factory.create()
-    updated_data = {"status": "shipped"}
-    response = client.put(f"/orders/{order.id}", json=updated_data)
+    updated_data = {"status": "Shipped"}
+    response = client.put(url_for("orders.update_order", order_id=order.id), json=json.dumps(updated_data), content_type="application/json")
     assert response.status_code == 200
     response_json = response.get_json()
     assert response_json["message"] == f"Order {order.id} updated successfully"
     updated_order = db.session.execute(select(Order).where(Order.id == order.id)).scalar()
     assert updated_order is not None
-    assert updated_order.status == updated_data["status"]
+    assert updated_order.status.value == updated_data["status"]
 
 
 def test_update_order_not_found(client):

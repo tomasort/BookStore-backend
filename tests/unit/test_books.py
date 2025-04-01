@@ -30,10 +30,9 @@ def test_create_simple_book(client, book_factory):
     assert db.session.execute(select(Book).where(Book.id == response_data["book_id"])).scalar() is not None
 
 
-@pytest.mark.parametrize("num_books, limit, page", [(10, 5, 1), (10, 5, 2)])
+@pytest.mark.parametrize("num_books, limit, page", [(10, 5, 1), (10, 5, 2), (15, 5, 3)])
 def test_get_books_pagination(client, book_factory, num_books, limit, page):
     """ Test retrieving books with pagination """
-    print(len(db.session.execute(select(Book)).scalars().all()))
     book_factory.create_batch(num_books)
     response = client.get(url_for('api.books.get_books', limit=limit, page=page))
     assert response.status_code == 200
@@ -41,12 +40,15 @@ def test_get_books_pagination(client, book_factory, num_books, limit, page):
     assert 'books' in data
     assert 'pagination' in data
     assert 'pages' in data['pagination']
-    assert data["pagination"]["pages"] == (num_books // limit) + (num_books % limit > 0)
+    num_books_in_db = db.session.execute(select(func.count()).select_from(Book)).scalar()
+    assert data["pagination"]["pages"] == (num_books_in_db // limit) + (num_books_in_db % limit > 0)
     assert isinstance(data["books"], list)
-    assert len(data["books"]) == min(limit, num_books - (page - 1) * limit)  # Ensure pagination works as expected
+    assert len(data["books"]) == min(limit, num_books_in_db - (page - 1) * limit)  # Ensure pagination works as expected
+
+# TODO: create tests for pagination with invalid page and limit values
 
 
-@pytest.mark.parametrize("num_books", [1, 3])
+@ pytest.mark.parametrize("num_books", [1, 3])
 def test_get_specific_book(client, book_factory, num_books):
     books = book_factory.create_batch(num_books)
     test_book = choice(books)
@@ -59,7 +61,7 @@ def test_get_specific_book(client, book_factory, num_books):
 
 # TODO: create tests for books with wrong data
 
-@pytest.mark.parametrize("num_books", [1, 2])
+@ pytest.mark.parametrize("num_books", [1, 2])
 def test_update_book(client, book_factory, num_books):
     fake = Faker()
     books = book_factory.create_batch(num_books)
@@ -93,7 +95,7 @@ def test_update_book(client, book_factory, num_books):
             assert getattr(updated_book, key) == value
 
 
-@pytest.mark.parametrize("num_books", [1, 3])
+@ pytest.mark.parametrize("num_books", [1, 3])
 def test_delete_book(client, book_factory, num_books):
     books = book_factory.create_batch(num_books)
     book_to_delete = choice(books)
@@ -106,7 +108,7 @@ def test_delete_book(client, book_factory, num_books):
     assert remaining_book_ids.issubset(db_book_ids)
 
 
-@pytest.mark.parametrize("num_books", [1, 5])
+@ pytest.mark.parametrize("num_books", [1, 5])
 def test_search_books_by_title(client, book_factory, num_books):
     books = book_factory.create_batch(num_books)
     searched_book = choice(books)
@@ -121,7 +123,7 @@ def test_search_books_by_title(client, book_factory, num_books):
 
 
 # TODO: test for search by isbn when isbn doesn't exist
-@pytest.mark.parametrize("num_books", [1, 5])
+@ pytest.mark.parametrize("num_books", [1, 5])
 def test_search_books_by_isbn(client, book_factory, num_books):
     books = book_factory.create_batch(num_books)
     searched_book = choice(books)
@@ -156,7 +158,7 @@ def test_search_books_query(client, book_factory, author_factory):
     assert book_with_author.id in book_ids
 
 
-@pytest.mark.parametrize("num_books", [1, 5])
+@ pytest.mark.parametrize("num_books", [1, 5])
 def test_search_books_no_results(client, book_factory, num_books):
     book_factory.create_batch(num_books)
     # Search for a non-existing book
@@ -168,7 +170,7 @@ def test_search_books_no_results(client, book_factory, num_books):
     assert data["message"] == "No books found matching the search criteria"
 
 
-@pytest.mark.parametrize("num_genres", [1, 2])
+@ pytest.mark.parametrize("num_genres", [1, 2])
 def test_add_genre_to_book(client, book_factory, genre_factory, num_genres):
     book = book_factory.create()
     book.genres = []  # TODO: create another test for books with existing genres
@@ -187,7 +189,7 @@ def test_add_genre_to_book(client, book_factory, genre_factory, num_genres):
     assert len(updated_book.genres) == num_genres
 
 
-@pytest.mark.parametrize("num_genres", [1, 2])
+@ pytest.mark.parametrize("num_genres", [1, 2])
 def test_remove_genre_from_book(client, book_factory, genre_factory, num_genres):
     book = book_factory.create()
     book.genres = genre_factory.create_batch(num_genres)
@@ -205,7 +207,7 @@ def test_remove_genre_from_book(client, book_factory, genre_factory, num_genres)
     assert len(book.genres) == num_genres - 1
 
 
-@pytest.mark.parametrize("num_series", [1, 2])
+@ pytest.mark.parametrize("num_series", [1, 2])
 def test_add_series_to_book(client, book_factory, series_factory, num_series):
     series = series_factory.create_batch(num_series)
     book = book_factory.create()
@@ -219,7 +221,7 @@ def test_add_series_to_book(client, book_factory, series_factory, num_series):
     assert len(book.series) == num_series
 
 
-@pytest.mark.parametrize("num_series", [1, 2])
+@ pytest.mark.parametrize("num_series", [1, 2])
 def test_remove_series_from_book(client, book_factory, series_factory, num_series):
     book = book_factory.create()
     book.series = series_factory.create_batch(num_series)
