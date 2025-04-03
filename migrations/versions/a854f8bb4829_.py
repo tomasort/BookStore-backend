@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 79de0703695d
+Revision ID: a854f8bb4829
 Revises: 
-Create Date: 2025-03-27 19:41:46.744221
+Create Date: 2025-04-01 06:14:01.790391
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '79de0703695d'
+revision = 'a854f8bb4829'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -71,7 +71,7 @@ def upgrade():
     op.create_table('exchange_rate',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('rate', sa.Float(), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('genre',
@@ -146,9 +146,9 @@ def upgrade():
     sa.Column('preferred_language', sa.String(length=10), nullable=True),
     sa.Column('active', sa.Boolean(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.Column('role', sa.String(length=20), nullable=True),
-    sa.Column('account_type', sa.String(length=20), nullable=False),
-    sa.Column('status', sa.String(length=20), nullable=True),
+    sa.Column('verified', sa.Boolean(), nullable=False),
+    sa.Column('role', sa.Enum('USER', 'ADMIN', 'STAFF', name='role'), nullable=False),
+    sa.Column('status', sa.Enum('ACTIVE', 'INACTIVE', 'BANNED', name='accountstatus'), nullable=False),
     sa.Column('newsletter_subscription', sa.Boolean(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
@@ -169,43 +169,43 @@ def upgrade():
     op.create_table('book_authors',
     sa.Column('book_id', sa.Integer(), nullable=False),
     sa.Column('author_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['author_id'], ['author.id'], ),
-    sa.ForeignKeyConstraint(['book_id'], ['book.id'], ),
+    sa.ForeignKeyConstraint(['author_id'], ['author.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['book_id'], ['book.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('book_id', 'author_id')
     )
     op.create_table('book_genres',
     sa.Column('book_id', sa.Integer(), nullable=False),
     sa.Column('genre_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['book_id'], ['book.id'], ),
-    sa.ForeignKeyConstraint(['genre_id'], ['genre.id'], ),
+    sa.ForeignKeyConstraint(['book_id'], ['book.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['genre_id'], ['genre.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('book_id', 'genre_id')
     )
     op.create_table('book_languages',
     sa.Column('book_id', sa.Integer(), nullable=False),
     sa.Column('language_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['book_id'], ['book.id'], ),
-    sa.ForeignKeyConstraint(['language_id'], ['language.id'], ),
+    sa.ForeignKeyConstraint(['book_id'], ['book.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['language_id'], ['language.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('book_id', 'language_id')
     )
     op.create_table('book_providers',
     sa.Column('book_id', sa.Integer(), nullable=False),
     sa.Column('provider_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['book_id'], ['book.id'], ),
-    sa.ForeignKeyConstraint(['provider_id'], ['provider.id'], ),
+    sa.ForeignKeyConstraint(['book_id'], ['book.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['provider_id'], ['provider.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('book_id', 'provider_id')
     )
     op.create_table('book_publishers',
     sa.Column('book_id', sa.Integer(), nullable=False),
     sa.Column('publisher_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['book_id'], ['book.id'], ),
-    sa.ForeignKeyConstraint(['publisher_id'], ['publisher.id'], ),
+    sa.ForeignKeyConstraint(['book_id'], ['book.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['publisher_id'], ['publisher.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('book_id', 'publisher_id')
     )
     op.create_table('book_series',
     sa.Column('book_id', sa.Integer(), nullable=False),
     sa.Column('series_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['book_id'], ['book.id'], ),
-    sa.ForeignKeyConstraint(['series_id'], ['series.id'], ),
+    sa.ForeignKeyConstraint(['book_id'], ['book.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['series_id'], ['series.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('book_id', 'series_id')
     )
     op.create_table('cart',
@@ -242,8 +242,8 @@ def upgrade():
     op.create_table('favorite_books',
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('book_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['book_id'], ['book.id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
+    sa.ForeignKeyConstraint(['book_id'], ['book.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('user_id', 'book_id')
     )
     op.create_table('featured_book',
@@ -271,7 +271,7 @@ def upgrade():
     sa.Column('billing_postal_code', sa.String(length=20), nullable=True),
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('tax', sa.Numeric(precision=10, scale=2), nullable=False),
-    sa.Column('status', sa.String(), nullable=False),
+    sa.Column('status', sa.Enum('PENDING', 'PAID', 'CONFIRMED', 'SHIPPED', 'CANCELED', name='orderstatus'), nullable=False),
     sa.Column('date', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
     sa.PrimaryKeyConstraint('id')
@@ -290,15 +290,15 @@ def upgrade():
     op.create_table('user_promotions',
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('promotion_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['promotion_id'], ['promotions.id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
+    sa.ForeignKeyConstraint(['promotion_id'], ['promotions.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('user_id', 'promotion_id')
     )
     op.create_table('wishlist_books',
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('book_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['book_id'], ['book.id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
+    sa.ForeignKeyConstraint(['book_id'], ['book.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('user_id', 'book_id')
     )
     op.create_table('cart_item',

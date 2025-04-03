@@ -1,9 +1,23 @@
 import sqlalchemy as sa
+import enum
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timezone
 import sqlalchemy.orm as so
 from typing import Optional, List
 from app import db
+
+
+class AccountStatus(enum.Enum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    BANNED = "banned"
+
+
+class Role(enum.Enum):
+    USER = "user"
+    ADMIN = "admin"
+    STAFF = "staff"
+
 
 favorite_books = sa.Table(
     'favorite_books',
@@ -64,10 +78,9 @@ class User(db.Model):
     preferred_language: so.Mapped[Optional[str]] = so.mapped_column(sa.String(10), default='en')
     active: so.Mapped[bool] = so.mapped_column(sa.Boolean, default=True)
     created_at: so.Mapped[datetime] = so.mapped_column(sa.DateTime, default=datetime.now(timezone.utc))
-    # TODO: make role and status enum types
-    role: so.Mapped[Optional[str]] = so.mapped_column(sa.String(20), default='user')  # 'user', 'admin', or 'staff'
-    account_type: so.Mapped[str] = so.mapped_column(sa.String(20), default='regular')
-    status: so.Mapped[Optional[str]] = so.mapped_column(sa.String(20), default='active')  # 'active', 'inactive', or 'banned'
+    verified: so.Mapped[bool] = so.mapped_column(sa.Boolean, default=False)
+    role: so.Mapped[Role] = so.mapped_column(db.Enum(Role), nullable=False, default=Role.USER)
+    status: so.Mapped[AccountStatus] = so.mapped_column(db.Enum(AccountStatus), nullable=False, default=AccountStatus.ACTIVE)
     newsletter_subscription: so.Mapped[bool] = so.mapped_column(sa.Boolean, default=False)
 
     def __repr__(self):

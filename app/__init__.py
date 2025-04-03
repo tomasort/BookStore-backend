@@ -114,7 +114,7 @@ def admin_required():
         def decorator(*args, **kwargs):
             verify_jwt_in_request()
             claims = get_jwt()
-            if claims.get("role") != "admin":
+            if claims.get("role") != "Admin":
                 return jsonify(message="Admin only!"), 403
             return fn(*args, **kwargs)
         return decorator

@@ -1,4 +1,5 @@
 import pytest
+from app.models import Role
 from sqlalchemy.orm import scoped_session, sessionmaker
 from flask_jwt_extended import create_access_token, get_csrf_token
 from app import create_app, db
@@ -62,18 +63,18 @@ def client(app):
         # Create a test client
         client = app.test_client()
 
-        # Start a transaction
-        connection = db.engine.connect()
-        transaction = connection.begin()
-        db.session.bind = connection
-        db.session.begin_nested()
+        # # Start a transaction
+        # connection = db.engine.connect()
+        # transaction = connection.begin()
+        # db.session.bind = connection
+        # db.session.begin_nested()
 
         yield client  # Provide the test client to the test
 
-        # Roll back the transaction
-        db.session.remove()
-        transaction.rollback()
-        connection.close()
+        # # Roll back the transaction
+        # db.session.remove()
+        # transaction.rollback()
+        # connection.close()
 
 
 @pytest.fixture()
@@ -84,19 +85,19 @@ def runner(app):
 
 @pytest.fixture
 def admin_user(user_factory):
-    user = user_factory.create(role="admin")
+    user = user_factory.create(role=Role.ADMIN)
     return user
 
 
 @pytest.fixture
 def regular_user(user_factory):
-    user = user_factory.create(role="user")
+    user = user_factory.create(role=Role.USER)
     return user
 
 
 @pytest.fixture
 def user_token(regular_user):
-    return create_access_token(identity=str(regular_user.id), additional_claims={"role": "user"})
+    return create_access_token(identity=str(regular_user.id), additional_claims={"role": Role.USER.value})
 
 
 @pytest.fixture
@@ -106,7 +107,7 @@ def user_csrf_token(user_token):
 
 @pytest.fixture
 def admin_token(admin_user):
-    return create_access_token(identity=str(admin_user.id), additional_claims={"role": "admin"})
+    return create_access_token(identity=str(admin_user.id), additional_claims={"role": Role.ADMIN.value})
 
 
 @pytest.fixture

@@ -210,7 +210,7 @@ def login():
         return jsonify({"error": "Invalid username or password"}), 401
     # Generate and set CSRF token after successful login
     # csrf_token = generate_csrf()
-    access_token = create_access_token(identity=str(user.id), additional_claims={"role": user.role})
+    access_token = create_access_token(identity=str(user.id), additional_claims={"role": user.role.value})
     response = jsonify({"message": "Login successful", "user_id": user.id})
     set_access_cookies(response, access_token)
     # response.headers['X-CSRF-Token'] = csrf_token

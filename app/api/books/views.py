@@ -368,6 +368,36 @@ def get_popular_books():
     return jsonify([book_schema.dump(book) for book in popular_books]), 200
 
 
+# TODO: add a test for this route
+@books.route('/latest', methods=['GET'])
+def get_latest_books():
+    # Extract query parameters
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("limit", 10, type=int)
+
+    pagination = db.session.query(Book).filter(Book.publish_date.isnot(None)).order_by(Book.publish_date.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+
+    for book in pagination.items:
+        current_app.logger.info(f"Book: {book.title}, ID: {book.id}, Publish Date: {book.publish_date}")
+
+    simple_book_schema = BookSchema(only=["id", "title", "subtitle", "isbn_10", "isbn_13", "authors", "series", "genres", "publishers", "current_price", "cover_url", "previous_price", "rating"])
+
+    # Return JSON response with pagination information
+    return jsonify({
+        "books": [simple_book_schema.dump(book) for book in pagination.items],
+        "pagination": {
+            "page": pagination.page,
+            "per_page": pagination.per_page,
+            "total": pagination.total,
+            "pages": pagination.pages,
+            "has_next": pagination.has_next,
+            "has_prev": pagination.has_prev
+        }
+    })
+
+
 @books.route('/related/<int:book_id>', methods=['GET'])
 def get_related_books(book_id):
     """
