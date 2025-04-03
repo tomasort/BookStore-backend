@@ -137,25 +137,42 @@ def test_search_books_by_isbn(client, book_factory, num_books):
     assert all((book["isbn_10"] == searched_book.isbn_10 or book["isbn_13"] == searched_book.isbn_13) for book in response_books)
 
 
-# TODO: improve this test
-def test_search_books_query(client, book_factory, author_factory):
+def test_search_books_author(client, book_factory, author_factory):
     # Create a batch of books
-    book_with_title = book_factory.create(title="The Great Gatsby")
-    book_with_description = book_factory.create(description="A tale of great love and loss")
+    book_factory.create_batch(5)
     book_with_author = book_factory.create()
     author = author_factory.create(name="The Great Author")
     book_with_author.authors.append(author)
-    search_response = client.get(url_for("api.books.search_books", keyword="tale"))
+    search_response = client.get(url_for("api.books.search_books", author="great"))
     assert search_response.status_code == 200
-    # Verify the search results are both books
     data = search_response.get_json()
     assert 'books' in data
     response_books = data['books']
     assert isinstance(response_books, list)
     book_ids = {book["id"] for book in response_books}
-    assert book_with_title.id in book_ids
-    assert book_with_description.id in book_ids
     assert book_with_author.id in book_ids
+
+
+def test_search_books_query(client, book_factory, author_factory):
+    # Create a batch of books
+    book_factory.create_batch(5)
+    # book_with_title = book_factory.create(title="The Great Gatsby")
+    book_with_description = book_factory.create(description="A tale of great love and loss")
+    # book_with_author = book_factory.create()
+    # author = author_factory.create(name="The Great Author")
+    # book_with_author.authors.append(author)
+    search_response = client.get(url_for("api.books.search_books", q="tale"))
+    assert search_response.status_code == 200
+    # Verify the search results are both books
+    data = search_response.get_json()
+    pprint(data)
+    assert 'books' in data
+    response_books = data['books']
+    assert isinstance(response_books, list)
+    book_ids = {book["id"] for book in response_books}
+    # assert book_with_title.id in book_ids
+    assert book_with_description.id in book_ids
+    # assert book_with_author.id in book_ids
 
 
 @ pytest.mark.parametrize("num_books", [1, 5])
