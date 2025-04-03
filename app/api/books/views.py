@@ -14,6 +14,8 @@ from sqlalchemy import func, case
 
 book_schema = BookSchema()
 
+DEFAULT_PER_PAGE = 10  # Default number of items per page
+
 
 # TODO: use longin required for create, update, delete routes
 
@@ -65,7 +67,7 @@ def update_book(book_id):
 def get_books():
     # Extract query parameters
     page = request.args.get("page", 1, type=int)
-    per_page = request.args.get("limit", 10, type=int)
+    per_page = request.args.get("limit", DEFAULT_PER_PAGE, type=int)
 
     # Create pagination object
     pagination = db.paginate(
@@ -121,7 +123,7 @@ def search_books():
     keywords = request.args.get('q', '', type=str)
 
     page = request.args.get('page', 1, type=int)
-    limit = request.args.get('limit', 10, type=int)
+    limit = request.args.get('limit', DEFAULT_PER_PAGE, type=int)
 
     # sort_by = request.args.get('sort_by', 'relevance', type=str)
 
@@ -373,7 +375,7 @@ def get_popular_books():
 def get_latest_books():
     # Extract query parameters
     page = request.args.get("page", 1, type=int)
-    per_page = request.args.get("limit", 10, type=int)
+    per_page = request.args.get("limit", DEFAULT_PER_PAGE, type=int)
 
     pagination = db.session.query(Book).filter(Book.publish_date.isnot(None)).order_by(Book.publish_date.desc()).paginate(
         page=page, per_page=per_page, error_out=False
@@ -409,32 +411,31 @@ def get_related_books(book_id):
     try:
         # Get pagination parameters with defaults
         page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 20, type=int)
+        per_page = request.args.get('per_page', DEFAULT_PER_PAGE, type=int)
 
         # Get the source book
         book = db.get_or_404(Book, book_id)
 
         # Extract authors and genres
-        author_names = [author.name for author in book.authors or []]
-        genre_names = [genre.name for genre in book.genres or []]
+        author_ids = [author.id for author in book.authors]
+        genre_ids = [genre.id for genre in book.genres]
 
-        if not author_names and not genre_names:
+        if not author_ids and not author_ids:
             return jsonify({"message": "Source book has no authors or genres to match", "data": []}), 200
 
         # Fixed case() syntax for newer SQLAlchemy versions
         # Define the scoring expressions
-        author_score = func.sum(case((Author.name.in_(author_names), 3), else_=0))
-        genre_score = func.sum(case((Genre.name.in_(genre_names), 1), else_=0))
+        author_score = func.sum(case((Author.id.in_(author_ids), 3), else_=0))
+        genre_score = func.sum(case((Genre.id.in_(genre_ids), 1), else_=0))
 
         total_score = (author_score + genre_score).label('relevance_score')
 
         # Build and execute query
         query = db.session.query(Book, total_score).outerjoin(Book.authors).outerjoin(Book.genres)
 
-        # Filter books with matching authors or genres, excluding the original book
         query = query.filter(
             (Book.id != book_id) &  # Exclude the original book
-            ((Author.name.in_(author_names)) | (Genre.name.in_(genre_names)))
+            ((Author.id.in_(author_ids)) | (Genre.id.in_(genre_ids)))
         ).group_by(Book.id).order_by(total_score.desc())
 
         # Add pagination
