@@ -1,5 +1,5 @@
 import pytest
-from app.models import Role
+from app.models.users import Role
 from sqlalchemy.orm import scoped_session, sessionmaker
 from flask_jwt_extended import create_access_token, get_csrf_token
 from app import create_app, db
@@ -46,35 +46,48 @@ def app():
     # Create the app instance with the testing configuration
     app = create_app("testing")
 
-    # # Establish an application context before running the tests
+    # Establish an application context before running the tests
     with app.app_context():
-        #     # Create the database and tables for testing
+        # Create the database and tables for testing
         db.create_all()
-        db.session.commit()
         yield app
-    #     # Drop the database after tests are done
-    #     db.session.remove()
+        # Drop the database after tests are done
+        db.session.remove()
         db.drop_all()
 
 
-@pytest.fixture(scope='function')
-def client(app):
-    with app.app_context():
-        # Create a test client
-        client = app.test_client()
+@pytest.fixture(scope="function")
+def client(app, db_session):
+    # Start a transaction for the test
+    # connection = db.engine.connect()
+    # transaction = connection.begin()
+    # db.session.bind = connection
+    # db.session.begin_nested()
 
-        # # Start a transaction
-        # connection = db.engine.connect()
-        # transaction = connection.begin()
-        # db.session.bind = connection
-        # db.session.begin_nested()
+    # Create a test client
+    with app.test_client() as client:
+        yield client
 
-        yield client  # Provide the test client to the test
+    # Roll back the transaction after the test
+    # db.session.remove()
+    # transaction.rollback()
+    # connection.close()
 
-        # # Roll back the transaction
-        # db.session.remove()
-        # transaction.rollback()
-        # connection.close()
+
+@pytest.fixture(scope="function")
+def db_session(app):
+    # Start a transaction for the test
+    connection = db.engine.connect()
+    transaction = connection.begin()
+    db.session.bind = connection
+    db.session.begin_nested()
+
+    yield db.session  # Provide the session to the test
+
+    # Roll back the transaction after the test
+    db.session.remove()
+    transaction.rollback()
+    connection.close()
 
 
 @pytest.fixture()

@@ -15,4 +15,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 ENTRYPOINT [ "/app/docker/scripts/start-test.sh" ]
 
-CMD ["./watcher", "pytest tests -vvv"]
+CMD ["./watcher", "pytest tests -vvv --maxfail=1"]
