@@ -1,4 +1,5 @@
 from app.auth import auth
+from flask_jwt_extended import verify_jwt_in_request
 import pdb
 from flask import session
 from app import db, admin_required
@@ -227,6 +228,21 @@ def logout():
     response.set_cookie('csrf_access_token', '', expires=0)
     session.clear()
     return response, 200
+
+
+@auth.route('/check-auth', methods=['GET'])
+@jwt_required(optional=True)
+def get_user_auth_status():
+    """
+    This function checks if the user is logged in in the frontend
+    """
+    try:
+        user_id = get_jwt_identity()
+        print(f"User ID: {user_id}")
+        # Verify JWT in the request
+        return jsonify({"logged_in": True if user_id else False, "user_id": user_id}), 200
+    except Exception as e:
+        return jsonify({"logged_in": False, "user_id": None}), 200
 
 
 # TODO: we might have to refactor this so that the user routes are in a separate file

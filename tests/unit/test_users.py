@@ -301,3 +301,28 @@ def test_update_password_wrong_current_password(client, regular_user, user_token
     data = response.get_json()
     assert data["error"] == "Current password is incorrect"
     assert user.check_password('password')  # the password should not have changed
+
+
+def test_get_user_login_status_logged_in(client, user_token, regular_user):
+    client.set_cookie("access_token_cookie", user_token)
+    response = client.get(
+        url_for('auth.get_user_auth_status'),
+    )
+    data = response.get_json()
+    assert response.status_code == 200
+    assert "logged_in" in data
+    assert "user_id" in data
+    assert data['logged_in'] is True
+    assert int(data['user_id']) == regular_user.id
+
+
+def test_get_user_login_status_not_logged_in(client):
+    response = client.get(
+        url_for('auth.get_user_auth_status')
+    )
+    data = response.get_json()
+    assert response.status_code == 200
+    assert "logged_in" in data
+    assert "user_id" in data
+    assert data['logged_in'] is False
+    assert data['user_id'] == None
