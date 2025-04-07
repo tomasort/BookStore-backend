@@ -6,6 +6,7 @@ from app import db
 from typing import Optional, List
 from sqlalchemy.ext.mutable import MutableList
 from app.models.reviews import Review
+from app.models.products import Product
 
 # Define many-to-many relationship tables using Typed ORM style
 book_genres = sa.Table(
@@ -95,24 +96,21 @@ class AuthorPhoto(db.Model):
         return f"<AuthorPhoto(url={self.url}, is_primary={self.is_primary})>"
 
 
-class Book(db.Model):
-    id: so.Mapped[int] = so.mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+class Book(Product):
+    id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("product.id"), primary_key=True)
     title: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
     subtitle: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     isbn_10: so.Mapped[Optional[str]] = so.mapped_column(sa.String, unique=True, index=True)
     isbn_13: so.Mapped[Optional[str]] = so.mapped_column(sa.String, unique=True, index=True)
     other_isbns: so.Mapped[Optional[List[str]]] = so.mapped_column(MutableList.as_mutable(sa.JSON))
     publish_date: so.Mapped[Optional[sa.Date]] = so.mapped_column(sa.Date)
-    description: so.Mapped[Optional[str]] = so.mapped_column(sa.Text)
+    # description: so.Mapped[Optional[str]] = so.mapped_column(sa.Text)
     current_price: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(10, 2))
     previous_price: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(10, 2))
     price_alejandria: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(10, 2))
-    iva: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(10, 2))
-    cost: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(10, 2))
-    cost_supplier: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(10, 2))
     average_cost_alejandria: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(10, 2))
     last_cost_alejandria: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(10, 2))
-    stock: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer)
+    # stock: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer)
     stock_alejandria: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer)
     stock_consig: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer)
     stock_consig_alejandria: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer)
@@ -125,8 +123,6 @@ class Book(db.Model):
     weight: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     publish_places: so.Mapped[Optional[list[str]]] = so.mapped_column(MutableList.as_mutable(sa.JSON))
     edition_name: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
-    discounts: so.Mapped[Optional[list["Discount"]]] = so.relationship("Discount", back_populates="book")
-    rating: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(4, 2), default=0)
 
     # Define the relationships
     providers: so.Mapped[list["Provider"]] = so.relationship(
@@ -151,6 +147,10 @@ class Book(db.Model):
 
     # Add the new relationship to the Cover model
     covers: so.Mapped[list["Cover"]] = so.relationship("Cover", back_populates="book", cascade="all, delete-orphan")
+
+    __mapper_args__ = {
+        "polymorphic_identity": "book",
+    }
 
     def __repr__(self) -> str:
         return f"<Book(id={self.id}, title='{self.title}', isbn10='{self.isbn_10}', isbn13='{self.isbn_13}')>"
