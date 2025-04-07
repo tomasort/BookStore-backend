@@ -224,6 +224,7 @@ def merge_books(book1, book2):
 def process_book(book_row, session):
     logger = current_app.logger
     book_data = {
+        'type': 'book',
         'title': get_field_value(book_row, 'title'),
         'isbn_10': get_field_value(book_row, 'isbn_10'),
         'isbn_13': get_field_value(book_row, 'isbn_13'),

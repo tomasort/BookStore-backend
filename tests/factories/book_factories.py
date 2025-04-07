@@ -26,7 +26,7 @@ class BookFactory(factory.alchemy.SQLAlchemyModelFactory):
     average_cost_alejandria = factory.Faker('pyfloat', right_digits=2, positive=True, min_value=5, max_value=150)
     last_cost_alejandria = factory.Faker('pyfloat', right_digits=2, positive=True, min_value=5, max_value=150)
     rating = factory.Faker('pyfloat', right_digits=2, positive=True, min_value=1, max_value=5)
-    stock = factory.Faker('random_int', min=0, max=500)
+    stock = factory.Faker('random_int', min=1, max=500)
     stock_alejandria = factory.Faker('random_int', min=0, max=500)
     stock_consig = factory.Faker('random_int', min=0, max=500)
     stock_consig_alejandria = factory.Faker('random_int', min=0, max=500)

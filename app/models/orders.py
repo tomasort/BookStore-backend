@@ -16,11 +16,28 @@ class OrderStatus(enum.Enum):
     CANCELED = "Canceled"
 
 
+class PaymentMethod(enum.Enum):
+    CARD = "Card"
+    PAYPAL = "PayPal"
+    STRIPE = "Stripe"
+    BANK_TRANSFER = "Bank Transfer"
+    CASH_ON_DELIVERY = "Cash on Delivery"
+
+
 class Order(db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    total: so.Mapped[Decimal] = so.mapped_column(sa.Numeric(10, 2), nullable=False)
     items: so.Mapped[list["OrderItem"]] = so.relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
+    date: so.Mapped[datetime] = so.mapped_column(sa.DateTime, nullable=False, default=datetime.now)
+    payment_method: so.Mapped[PaymentMethod] = so.mapped_column(db.Enum(PaymentMethod), nullable=False, default=PaymentMethod.CARD)
+    status = db.Column(db.Enum(OrderStatus), nullable=False, default=OrderStatus.PENDING)
+    tax: so.Mapped[Decimal] = so.mapped_column(sa.Numeric(10, 2), nullable=False, default=0)
+    total: so.Mapped[Decimal] = so.mapped_column(sa.Numeric(10, 2), nullable=False)
+    shipping_cost: so.Mapped[Decimal] = so.mapped_column(sa.Numeric(10, 2), nullable=False, default=0)
+
     tracking_number: so.Mapped[Optional[str]] = so.mapped_column(sa.String(50))
+
+    user_id: so.Mapped[int] = so.mapped_column(sa.Integer, sa.ForeignKey('user.id'), nullable=True)
+    user: so.Mapped["User"] = so.relationship("User", back_populates="orders")
 
     # Address Information
     shipping_address: so.Mapped[Optional[str]] = so.mapped_column(sa.String(200))
@@ -35,17 +52,6 @@ class Order(db.Model):
     billing_state: so.Mapped[Optional[str]] = so.mapped_column(sa.String(100))
     billing_country: so.Mapped[Optional[str]] = so.mapped_column(sa.String(100))
     billing_postal_code: so.Mapped[Optional[str]] = so.mapped_column(sa.String(20))
-
-    user_id: so.Mapped[int] = so.mapped_column(sa.Integer, sa.ForeignKey('user.id'), nullable=False)
-    user: so.Mapped["User"] = so.relationship("User", back_populates="orders")
-
-    tax: so.Mapped[Decimal] = so.mapped_column(sa.Numeric(10, 2), nullable=False, default=0)
-    status = db.Column(
-        db.Enum(OrderStatus),
-        nullable=False,
-        default=OrderStatus.PENDING
-    )
-    date: so.Mapped[datetime] = so.mapped_column(sa.DateTime, nullable=False, default=datetime.now)
 
     def __repr__(self):
         return f"<Order {self.id}, customer={self.user_id}, total={self.total}, items={self.items}>"

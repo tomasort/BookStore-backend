@@ -15,4 +15,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 ENTRYPOINT [ "/app/docker/scripts/start-test.sh" ]
 
-CMD ["./watcher", "pytest tests/unit/test_users.py -k 'test_get_user_login_status' -vvv --maxfail=1"]
+CMD ["./watcher", "pytest tests/unit/test_checkout.py -vvv --maxfail=1"]
