@@ -2,14 +2,13 @@ services:
 
   flask-app:
     build:
-      context: .
+      context: ../../
       dockerfile: ./docker/dockerfiles/Dockerfile-prod
     ports:
       - "5050:5000"
     depends_on:
       - postgres
     volumes:
-      - ./:/app
       - ${DATA_PATH}:/data
     environment:
       - SQLALCHEMY_DATABASE_URI=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}

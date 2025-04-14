@@ -1,4 +1,3 @@
-import pdb
 from app.models import User
 from sqlalchemy.exc import SQLAlchemyError
 from app.models import Book
@@ -45,19 +44,18 @@ def get_cart():
     cart = None
     if user_id is not None:
         user_id = int(user_id)
-        cart = db.session.query(Cart).filter_by(user_id=user_id).first()
-        session_cart_id = session.get('cart_id')
-        if cart is None or session_cart_id:
+        user = db.session.query(User).filter_by(id=user_id).first()
+        cart = user.cart
+        if cart is None:
             # check if there is a session cart_id
+            session_cart_id = session.get('cart_id')
             cart_id = session_cart_id
             if cart_id is not None:
                 cart = db.session.query(Cart).filter_by(id=cart_id).first()
             else:
                 cart = Cart()
-            user = db.session.query(User).filter_by(id=user_id).first()
-            cart.user = user
-            db.session.add(cart)
-            db.session.commit()
+                db.session.add(cart)
+            user.cart = cart
     else:
         cart_id = session.get('cart_id')
         if cart_id is not None:
@@ -65,8 +63,8 @@ def get_cart():
         if not cart:
             cart = Cart()
             db.session.add(cart)
-            db.session.commit()
             session['cart_id'] = cart.id
+    db.session.commit()
     if cart:
         return jsonify(cart_schema.dump(cart)), 200
     current_app.logger.info(f"Cart not found for user ID: {user_id}")

@@ -451,7 +451,6 @@ def populate(source_path, books_file, authors_file, providers_file, batch_size, 
 
     try:
         for index, row in books_df.iterrows():
-            pass
             logger.info("Processing book %d", index)
             new_book = process_book(row, session)
             process_genre(session, new_book, row)
@@ -464,6 +463,8 @@ def populate(source_path, books_file, authors_file, providers_file, batch_size, 
                 if (index + 1) % batch_size == 0:
                     session.flush()  # Push changes to the database without committing
                     session.commit()  # Commit the batch
+            if limit and index + 1 >= limit:
+                break
         if commit:
             session.commit()  # Final commit for remaining books
     except Exception as e:

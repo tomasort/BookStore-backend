@@ -13,6 +13,12 @@ COPY requirements.txt requirements.txt
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-ENTRYPOINT [ "/app/docker/scripts/start-test.sh" ]
+COPY scripts/start-test.sh /start.sh
 
-CMD ["./watcher", "pytest tests/unit/test_users.py -k 'test_get_user_login_status' -vvv --maxfail=1"]
+# Ensure the script is executable
+RUN chmod +x /start.sh
+
+ENTRYPOINT [ "/start.sh" ]
+
+
+CMD ["./watcher", "pytest tests -vvv"]

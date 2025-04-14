@@ -74,6 +74,9 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.cart import cart
     app.register_blueprint(cart)
 
+    from app.checkout import checkout
+    app.register_blueprint(checkout)
+
     # set up logging
     setup_logging(app)
 

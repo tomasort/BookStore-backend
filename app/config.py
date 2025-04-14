@@ -20,7 +20,6 @@ class BaseConfig:
     JWT_COOKIE_SECURE = False
     JWT_COOKIE_CSRF_PROTECT = True
     JWT_ACCESS_TOKEN_EXPIRES = 30000
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 
 class DevelopmentConfig(BaseConfig):

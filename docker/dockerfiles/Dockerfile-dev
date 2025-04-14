@@ -12,7 +12,11 @@ COPY requirements.txt requirements.txt
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-ENTRYPOINT [ "/app/docker/scripts/start-dev.sh" ]
+COPY scripts/start-dev.sh start.sh
+
+RUN chmod +x start.sh
+
+ENTRYPOINT [ "/app/start.sh" ]
 
 CMD ["flask", "run", "--host=0.0.0.0", "--debug"]
 

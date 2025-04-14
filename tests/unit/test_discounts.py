@@ -22,7 +22,6 @@ def test_create_simple_book(client, book_factory):
         data=json.dumps(book_schema.dump(book)),
         content_type="application/json"
     )
-    print(response.data)
     # Assert that the request was successful
     assert response.status_code == 201
     response_data = response.get_json()
