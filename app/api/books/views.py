@@ -10,7 +10,7 @@ from app.models import Book, Author, Genre, Series
 from app.api.books import books
 from app.schemas import BookSchema, AuthorSchema
 from app.models import OrderItem
-from sqlalchemy import func, case
+from sqlalchemy import func, case, desc
 
 book_schema = BookSchema()
 
@@ -428,33 +428,45 @@ def get_related_books(book_id):
         author_score = func.sum(case((Author.id.in_(author_ids), 3), else_=0))
         genre_score = func.sum(case((Genre.id.in_(genre_ids), 1), else_=0))
 
-        total_score = (author_score + genre_score).label('relevance_score')
+        # Get book IDs with scores first
+        score_query = (db.session.query(
+            Book.id.label('book_id'),
+            (author_score + genre_score).label('relevance_score'))
+            .outerjoin(Book.authors)
+            .outerjoin(Book.genres)
+            .filter(
+                (Book.id != book_id) &
+                ((Author.id.in_(author_ids)) | (Genre.id.in_(genre_ids)))
+        )
+            .group_by(Book.id)
+            .order_by(desc('relevance_score'))
+        )
 
-        # Build and execute query
-        query = db.session.query(Book, total_score).outerjoin(Book.authors).outerjoin(Book.genres)
+        # Get paginated results
+        paginated_scores = score_query.paginate(page=page, per_page=per_page)
+        book_ids = [result.book_id for result in paginated_scores.items]
+        scores_by_id = {result.book_id: result.relevance_score for result in paginated_scores.items}
 
-        query = query.filter(
-            (Book.id != book_id) &  # Exclude the original book
-            ((Author.id.in_(author_ids)) | (Genre.id.in_(genre_ids)))
-        ).group_by(Book.id).order_by(total_score.desc())
+        # Load full Book objects separately
+        books = db.session.query(Book).filter(Book.id.in_(book_ids)).all()
 
-        # Add pagination
-        paginated_results = query.paginate(page=page, per_page=per_page)
+        # Sort books in the same order as the scores
+        books.sort(key=lambda b: scores_by_id.get(b.id, 0), reverse=True)
 
-        # Extract books from the paginated query result
-        books = [book for book, _ in paginated_results.items]
+        # Create your own pagination metadata since we're not using the ORM's pagination on the books
+        pagination = {
+            "total": paginated_scores.total,
+            "pages": paginated_scores.pages,
+            "page": page,
+            "per_page": per_page,
+            "has_next": paginated_scores.has_next,
+            "has_prev": paginated_scores.has_prev
+        }
 
         # Prepare response with pagination metadata
         response = {
             "books": [book_schema.dump(b) for b in books],
-            "pagination": {
-                "total": paginated_results.total,
-                "pages": paginated_results.pages,
-                "page": page,
-                "per_page": per_page,
-                "has_next": paginated_results.has_next,
-                "has_prev": paginated_results.has_prev
-            }
+            "pagination": pagination
         }
 
         return jsonify(response), 200

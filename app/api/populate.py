@@ -224,7 +224,6 @@ def merge_books(book1, book2):
 def process_book(book_row, session):
     logger = current_app.logger
     book_data = {
-        'type': 'book',
         'title': get_field_value(book_row, 'title'),
         'isbn_10': get_field_value(book_row, 'isbn_10'),
         'isbn_13': get_field_value(book_row, 'isbn_13'),
@@ -452,7 +451,6 @@ def populate(source_path, books_file, authors_file, providers_file, batch_size, 
 
     try:
         for index, row in books_df.iterrows():
-            pass
             logger.info("Processing book %d", index)
             new_book = process_book(row, session)
             process_genre(session, new_book, row)
@@ -465,6 +463,8 @@ def populate(source_path, books_file, authors_file, providers_file, batch_size, 
                 if (index + 1) % batch_size == 0:
                     session.flush()  # Push changes to the database without committing
                     session.commit()  # Commit the batch
+            if limit and index + 1 >= limit:
+                break
         if commit:
             session.commit()  # Final commit for remaining books
     except Exception as e:

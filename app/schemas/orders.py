@@ -14,6 +14,7 @@ class OrderSchema(ma.SQLAlchemySchema):
     items = fields.List(fields.Nested(lambda: OrderItemSchema()))
     status = fields.Enum(OrderStatus, by_value=True)
     user = fields.Nested('UserSchema', exclude=('orders', ), allow_none=True)
+    payment = fields.Nested('PaymentSchema', allow_none=True)
 
 
 class OrderItemSchema(ma.SQLAlchemySchema):

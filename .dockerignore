@@ -1,4 +1,6 @@
 Dockerfile-dev
 venv/
 .git/
-
+.gitignore
+.env
+docker/

@@ -2,9 +2,14 @@ from sqlalchemy import select
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask import request, jsonify
 from app.checkout import checkout
-from app.models import Order, OrderItem, Cart, User
+from app.models import Order, OrderItem, Cart, User, Payment
 from app.schemas import OrderSchema, OrderItemSchema
 from app import db
+
+
+@checkout.route('/methods', methods=['GET'])
+def get_checkout_methods():
+    return jsonify(Payment.get_payment_methods()), 200
 
 
 # TODO: use celery to process the payment in the background
@@ -13,27 +18,27 @@ from app import db
 def process_checkout():
     try:
         user_id = get_jwt_identity()
+
         if user_id is not None:
             user_id = int(user_id)
+
         data = request.json
 
-        print(f"User from route: {user_id}")
+        payment_method = data.get('payment_method', '')
+        cart_id = data.get('cart_id')
+
+        # # Validate Payment Method
+        # valid_payment_methods = [pm.value for pm in PaymentMethod]
+        # if payment_method not in valid_payment_methods:
+        #     return jsonify({'error': 'Invalid payment method'}), 400
 
         # Validate cart
-        cart_id = data.get('cart_id')
-        payment_method = data.get('payment_method', '').lower()
         if not cart_id:
             return jsonify({'error': 'Cart ID is required'}), 400
-        if payment_method not in ['zelle', 'stripe']:
-            return jsonify({'error': 'Invalid payment method'}), 400
-
-        # Fetch the cart
         cart = db.session.query(Cart).filter_by(id=cart_id).first()
         if not cart:
             return jsonify({'error': 'Cart not found'}), 404
-        if cart.user_id != user_id:
-            print("cart.user_id", cart.user_id, type(cart.user_id))
-            print("user_id", user_id, type(user_id))
+        if cart.user_id and cart.user_id != user_id:
             return jsonify({'error': 'Unauthorized access to cart'}), 403
         if len(cart.items) == 0:
             return jsonify({'error': 'Cart is empty'}), 400

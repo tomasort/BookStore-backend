@@ -16,19 +16,11 @@ class OrderStatus(enum.Enum):
     CANCELED = "Canceled"
 
 
-class PaymentMethod(enum.Enum):
-    CARD = "Card"
-    PAYPAL = "PayPal"
-    STRIPE = "Stripe"
-    BANK_TRANSFER = "Bank Transfer"
-    CASH_ON_DELIVERY = "Cash on Delivery"
-
-
 class Order(db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     items: so.Mapped[list["OrderItem"]] = so.relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
     date: so.Mapped[datetime] = so.mapped_column(sa.DateTime, nullable=False, default=datetime.now)
-    payment_method: so.Mapped[PaymentMethod] = so.mapped_column(db.Enum(PaymentMethod), nullable=False, default=PaymentMethod.CARD)
+    payment: so.Mapped[Optional["Payment"]] = so.relationship("Payment", back_populates="order", uselist=False)
     status = db.Column(db.Enum(OrderStatus), nullable=False, default=OrderStatus.PENDING)
     tax: so.Mapped[Decimal] = so.mapped_column(sa.Numeric(10, 2), nullable=False, default=0)
     total: so.Mapped[Decimal] = so.mapped_column(sa.Numeric(10, 2), nullable=False)

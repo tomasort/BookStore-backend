@@ -24,6 +24,7 @@ class BookSchema(ma.SQLAlchemyAutoSchema):
 
     cover_url = fields.Method("get_cover_url", dump_only=True)
     # Fields for the Book model
+    type = ma.auto_field(dump_only=True)  # Read-only field
     id = ma.auto_field(dump_only=True)  # Read-only field
     title = ma.auto_field(required=True)
     current_price = fields.Decimal(as_string=True)
