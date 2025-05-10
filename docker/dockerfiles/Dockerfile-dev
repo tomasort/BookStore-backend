@@ -12,11 +12,11 @@ COPY requirements.txt requirements.txt
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY scripts/start-dev.sh start.sh
+COPY scripts/start-dev.sh scripts/start-dev.sh
 
-RUN chmod +x start.sh
+RUN chmod +x scripts/start-dev.sh
 
-ENTRYPOINT [ "/app/start.sh" ]
+ENTRYPOINT [ "scripts/start-dev.sh" ]
 
 CMD ["flask", "run", "--host=0.0.0.0", "--debug"]
 
